@@ -49,7 +49,7 @@ class Parser(tokens: Seq[Token]) {
   private def expression(): Expr = assignment()
 
   private def assignment(): Expr = {
-    var expr = or()
+    val expr = or()
 
     if (matchToken(TokenType.EQUAL)) {
       val equals = previous()
@@ -156,7 +156,7 @@ class Parser(tokens: Seq[Token]) {
       VariableExpr(previous())
     } else if (matchToken(TokenType.LEFT_PAREN)) {
       val expr = expression()
-      consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.");
+      consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
       GroupingExpr(expr)
     } else {
       throw error(peek(), "Expect expression.")

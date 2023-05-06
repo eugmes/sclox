@@ -40,18 +40,16 @@ class Interpreter {
   private def execute(stmt: Stmt): Unit = {
     stmt match
       case ExpressionStmt(expression) => evaluate(expression)
-      case PrintStmt(expression) => {
+      case PrintStmt(expression) =>
         val value = evaluate(expression)
         println(stringify(value))
-      }
-      case VarStmt(name, initializer) => {
+      case VarStmt(name, initializer) =>
         val value = if (initializer == null) {
           null
         } else {
           evaluate(initializer)
         }
         environment.define(name.lexeme, value)
-      }
       case BlockStmt(statements) => executeBlock(statements, Environment(environment))
       case IfStmt(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
   }
@@ -102,7 +100,7 @@ class Interpreter {
     token.tokenType match
       case TokenType.MINUS => checkNumberOperand(token, rightValue)
       case TokenType.BANG => !isTruly(rightValue)
-      case _ => ???
+      case _ => assert(false)
   }
 
   private def evaluateBinary(left: Expr, token: Token, right: Expr): Any = {
@@ -138,7 +136,7 @@ class Interpreter {
       case TokenType.STAR =>
         val (l, r) = checkNumberOperands(token, leftValue, rightValue)
         l * r
-      case _ => ???
+      case _ => assert(false)
   }
 
   private def evaluateLogical(left: Expr, operator: Token, right: Expr): Any = {
