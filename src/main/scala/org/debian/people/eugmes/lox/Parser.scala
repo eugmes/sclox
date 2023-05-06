@@ -139,8 +139,31 @@ class Parser(tokens: Seq[Token]) {
       val right = unary()
       Expr.Unary(operator, right)
     } else {
-      primary()
+      call()
     }
+  }
+
+  private def call(): Expr = {
+    var expr = primary()
+
+    while matchToken(TokenType.LEFT_PAREN) do
+      expr = finishCall(expr)
+
+    expr
+  }
+
+  private def finishCall(callee: Expr): Expr = {
+    val arguments: ArrayBuffer[Expr] = ArrayBuffer()
+    if (!check(TokenType.RIGHT_PAREN)) {
+      arguments.append(expression())
+      while matchToken(TokenType.COMMA) do
+        if (arguments.length >= 255) {
+          error(peek(), "Can't have more than 255 arguments.")
+        }
+        arguments.append(expression())
+    }
+    val paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
+    Expr.Call(callee, paren, arguments.toSeq)
   }
 
   private def primary(): Expr = {

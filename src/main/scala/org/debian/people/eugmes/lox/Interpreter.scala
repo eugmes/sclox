@@ -1,9 +1,19 @@
 package org.debian.people.eugmes.lox
 
 import scala.annotation.tailrec
+import scala.collection.mutable.ArrayBuffer
 
 class Interpreter {
-  private var environment = Environment()
+  private val globals = {
+    val globals = Environment()
+    globals.define("clock", new LoxCallable {
+      override def arity: Int = 0
+      override def call(interpreter: Interpreter, arguments: Seq[Any]): Any = System.currentTimeMillis().toDouble / 1000.0
+      override def toString: String = "<native fn>"
+    })
+    globals
+  }
+  private var environment = globals
 
   def interpret(statements: Seq[Stmt]): Unit = {
     try
@@ -35,6 +45,7 @@ class Interpreter {
       case Expr.Variable(name) => environment.get(name)
       case Expr.Assign(name, value) => evaluateAssign(name, value)
       case Expr.Logical(left, operator, right) => evaluateLogical(left, operator, right)
+      case Expr.Call(callee, paren, arguments) => evaluateCall(callee, paren, arguments)
   }
 
   private def execute(stmt: Stmt): Unit = {
@@ -91,6 +102,17 @@ class Interpreter {
       case d: Double => d
       case _ => throw RuntimeError(token, "Right operand must be a number.")
     (leftValue, rightValue)
+  }
+
+  private def evaluateCall(callee: Expr, paren: Token, arguments: Seq[Expr]): Any = {
+    evaluate(callee) match
+      case function: LoxCallable =>
+        val evalArgs = arguments.map(evaluate)
+        if (evalArgs.length != function.arity) {
+          throw RuntimeError(paren, s"Expected ${function.arity} arguments but got ${evalArgs.length}.")
+        }
+        function.call(this, evalArgs)
+      case _ => throw RuntimeError(paren, "Can only call functions and classes.")
   }
 
   private def evaluateAssign(name: Token, expr: Expr): Any = {
