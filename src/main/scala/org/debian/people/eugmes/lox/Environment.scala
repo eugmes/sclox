@@ -11,10 +11,9 @@ class Environment(enclosing: Environment = null) {
 
   def get(name: Token): Any = {
     values.getOrElse(name.lexeme,
-      () =>
-        if enclosing != null
-        then enclosing.get(name)
-        else throw RuntimeError(name, s"Undefined variable '${name.lexeme}'."))
+      if enclosing != null
+      then enclosing.get(name)
+      else throw RuntimeError(name, s"Undefined variable '${name.lexeme}'."))
   }
 
   def assign(name: Token, value: Any): Unit = {

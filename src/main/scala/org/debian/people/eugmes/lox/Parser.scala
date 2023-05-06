@@ -56,7 +56,7 @@ class Parser(tokens: Seq[Token]) {
       val value = assignment()
 
       expr match
-        case VariableExpr(name) => AssignExpr(name, value)
+        case Expr.Variable(name) => Expr.Assign(name, value)
         case _ => throw error(equals, "Invalid assignment target.")
     } else {
       expr
@@ -69,7 +69,7 @@ class Parser(tokens: Seq[Token]) {
     while (matchToken(TokenType.OR)) {
       val operator = previous()
       val right = and()
-      expr = LogicalExpr(expr, operator, right)
+      expr = Expr.Logical(expr, operator, right)
     }
 
     expr
@@ -81,7 +81,7 @@ class Parser(tokens: Seq[Token]) {
     while (matchToken(TokenType.OR)) {
       val operator = previous()
       val right = equality()
-      expr = LogicalExpr(expr, operator, right)
+      expr = Expr.Logical(expr, operator, right)
     }
 
     expr
@@ -92,7 +92,7 @@ class Parser(tokens: Seq[Token]) {
     while (matchToken(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
       val operator = previous()
       val right = comparison()
-      expr = BinaryExpr(expr, operator, right)
+      expr = Expr.Binary(expr, operator, right)
     }
 
     expr
@@ -104,7 +104,7 @@ class Parser(tokens: Seq[Token]) {
     while (matchToken(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
       val operator = previous()
       val right = term()
-      expr = BinaryExpr(expr, operator, right)
+      expr = Expr.Binary(expr, operator, right)
     }
 
     expr
@@ -116,7 +116,7 @@ class Parser(tokens: Seq[Token]) {
     while (matchToken(TokenType.MINUS, TokenType.PLUS)) {
       val operator = previous()
       val right = factor()
-      expr = BinaryExpr(expr, operator, right)
+      expr = Expr.Binary(expr, operator, right)
     }
 
     expr
@@ -128,7 +128,7 @@ class Parser(tokens: Seq[Token]) {
     while (matchToken(TokenType.SLASH, TokenType.STAR)) {
       val operator = previous()
       val right = unary()
-      expr = BinaryExpr(expr, operator, right)
+      expr = Expr.Binary(expr, operator, right)
     }
     expr
   }
@@ -137,7 +137,7 @@ class Parser(tokens: Seq[Token]) {
     if (matchToken(TokenType.BANG, TokenType.MINUS)) {
       val operator = previous()
       val right = unary()
-      UnaryExpr(operator, right)
+      Expr.Unary(operator, right)
     } else {
       primary()
     }
@@ -145,19 +145,19 @@ class Parser(tokens: Seq[Token]) {
 
   private def primary(): Expr = {
     if (matchToken(TokenType.FALSE)) {
-      LiteralExpr(false)
+      Expr.Literal(false)
     } else if (matchToken(TokenType.TRUE)) {
-      LiteralExpr(true)
+      Expr.Literal(true)
     } else if (matchToken(TokenType.NIL)) {
-      LiteralExpr(null)
+      Expr.Literal(null)
     } else if (matchToken(TokenType.NUMBER, TokenType.STRING)) {
-      LiteralExpr(previous().literal)
+      Expr.Literal(previous().literal)
     } else if (matchToken(TokenType.IDENTIFIER)) {
-      VariableExpr(previous())
+      Expr.Variable(previous())
     } else if (matchToken(TokenType.LEFT_PAREN)) {
       val expr = expression()
       consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
-      GroupingExpr(expr)
+      Expr.Grouping(expr)
     } else {
       throw error(peek(), "Expect expression.")
     }
@@ -196,14 +196,14 @@ class Parser(tokens: Seq[Token]) {
       null
     }
     consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
-    VarStmt(name, initializer)
+    Stmt.Var(name, initializer)
   }
 
   private def statement(): Stmt = {
     if (matchToken(TokenType.PRINT)) {
       printStatement()
     } else if (matchToken(TokenType.LEFT_BRACE)) {
-      BlockStmt(block())
+      Stmt.Block(block())
     } else if (matchToken(TokenType.IF)) {
       ifStatement()
     } else {
@@ -218,7 +218,7 @@ class Parser(tokens: Seq[Token]) {
 
     val thenBranch = statement()
     val elseBranch = if matchToken(TokenType.ELSE) then statement() else null
-    IfStmt(condition, thenBranch, elseBranch)
+    Stmt.If(condition, thenBranch, elseBranch)
   }
 
   private def block(): Seq[Stmt] = {
@@ -235,13 +235,13 @@ class Parser(tokens: Seq[Token]) {
   private def printStatement(): Stmt = {
     val value = expression()
     consume(TokenType.SEMICOLON, "Expect ';' after value.")
-    PrintStmt(value)
+    Stmt.Print(value)
   }
 
   private def expressionStatement(): Stmt = {
     val expr = expression()
     consume(TokenType.SEMICOLON, "Expect ';' after expression.")
-    ExpressionStmt(expr)
+    Stmt.Expression(expr)
   }
 
   def parse(): Seq[Stmt] = {

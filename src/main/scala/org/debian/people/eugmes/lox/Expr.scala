@@ -1,17 +1,10 @@
 package org.debian.people.eugmes.lox
 
-sealed trait Expr
-
-case class BinaryExpr(left: Expr, operator: Token, right: Expr) extends Expr
-
-case class GroupingExpr(expression: Expr) extends Expr
-
-case class LiteralExpr(value: Any) extends Expr
-
-case class UnaryExpr(operator: Token, right: Expr) extends Expr
-
-case class VariableExpr(name: Token) extends Expr
-
-case class AssignExpr(name: Token, value: Expr) extends Expr
-
-case class LogicalExpr(left: Expr, operator: Token, right: Expr) extends Expr
+enum Expr:
+  case Binary(left: Expr, operator: Token, right: Expr)
+  case Grouping(expression: Expr)
+  case Literal(value: Any)
+  case Unary(operator: Token, right: Expr)
+  case Variable(name: Token)
+  case Assign(name: Token, value: Expr)
+  case Logical(left: Expr, operator: Token, right: Expr)

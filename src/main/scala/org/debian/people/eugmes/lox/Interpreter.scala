@@ -28,30 +28,30 @@ class Interpreter {
   @tailrec
   private def evaluate(expression: Expr): Any = {
     expression match
-      case GroupingExpr(expression) => evaluate(expression)
-      case UnaryExpr(operator, right) => evaluateUnary(operator, right)
-      case BinaryExpr(left, operator, right) => evaluateBinary(left, operator, right)
-      case LiteralExpr(value) => value
-      case VariableExpr(name) => environment.get(name)
-      case AssignExpr(name, value) => evaluateAssign(name, value)
-      case LogicalExpr(left, operator, right) => evaluateLogical(left, operator, right)
+      case Expr.Grouping(expression) => evaluate(expression)
+      case Expr.Unary(operator, right) => evaluateUnary(operator, right)
+      case Expr.Binary(left, operator, right) => evaluateBinary(left, operator, right)
+      case Expr.Literal(value) => value
+      case Expr.Variable(name) => environment.get(name)
+      case Expr.Assign(name, value) => evaluateAssign(name, value)
+      case Expr.Logical(left, operator, right) => evaluateLogical(left, operator, right)
   }
 
   private def execute(stmt: Stmt): Unit = {
     stmt match
-      case ExpressionStmt(expression) => evaluate(expression)
-      case PrintStmt(expression) =>
+      case Stmt.Expression(expression) => evaluate(expression)
+      case Stmt.Print(expression) =>
         val value = evaluate(expression)
         println(stringify(value))
-      case VarStmt(name, initializer) =>
+      case Stmt.Var(name, initializer) =>
         val value = if (initializer == null) {
           null
         } else {
           evaluate(initializer)
         }
         environment.define(name.lexeme, value)
-      case BlockStmt(statements) => executeBlock(statements, Environment(environment))
-      case IfStmt(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
+      case Stmt.Block(statements) => executeBlock(statements, Environment(environment))
+      case Stmt.If(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
   }
 
   private def executeBlock(statements: Seq[Stmt], environment: Environment): Unit = {
