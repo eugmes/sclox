@@ -2,6 +2,7 @@ package org.debian.people.eugmes.lox
 
 import scala.collection.immutable.HashMap
 import scala.collection.mutable.ArrayBuffer
+import scala.util.control.NonLocalReturns.{returning, throwReturn}
 
 class Scanner(source: String) {
   private val tokens: ArrayBuffer[Token] = ArrayBuffer()
@@ -10,10 +11,9 @@ class Scanner(source: String) {
   private var line = 1
 
   def scanTokens(): Seq[Token] = {
-    while (!isAtEnd) {
+    while !isAtEnd do
       start = current
       scanToken()
-    }
 
     tokens.append(Token(TokenType.EOF, "", null, line))
     tokens.toSeq
@@ -85,16 +85,14 @@ class Scanner(source: String) {
 
   private def peekNext(): Char = if (current + 1 > source.length) 0.toChar else source.charAt(current + 1)
 
-  private def string(): Unit = {
-    while (peek() != '"' && !isAtEnd) {
-      if (peek() == '\n') { line += 1 }
+  private def string(): Unit = returning {
+    while peek() != '"' && !isAtEnd do
+      if peek() == '\n' then line += 1
       advance()
-    }
 
-    if (isAtEnd) {
+    if isAtEnd then
       Lox.error(line, "Unterminated string.")
-      return
-    }
+      throwReturn(())
 
     advance() // The closing ".
 
@@ -110,27 +108,19 @@ class Scanner(source: String) {
   private def isAlphaNumeric(c: Char) = isAlpha(c) || isDigit(c)
 
   private def number(): Unit = {
-    while (isDigit(peek())) {
-      advance()
-    }
+    while isDigit(peek()) do advance()
 
     // Look for a fractional part.
-    if (peek() == '.' && isDigit(peekNext())) {
+    if peek() == '.' && isDigit(peekNext()) then
       // Consume the "."
       advance()
-
-      while (isDigit(peek())) {
-        advance()
-      }
-    }
+      while isDigit(peek()) do advance()
 
     addToken(TokenType.NUMBER, source.substring(start, current).toDouble)
   }
 
   private def identifier(): Unit = {
-    while (isAlphaNumeric(peek())) {
-      advance()
-    }
+    while isAlphaNumeric(peek()) do advance()
 
     val text = source.substring(start, current)
     val tokenType = Scanner.keywords.getOrElse(text, TokenType.IDENTIFIER)

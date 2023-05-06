@@ -2,6 +2,7 @@ package org.debian.people.eugmes.lox
 
 import scala.io.Source
 import scala.io.StdIn.readLine
+import scala.util.control.NonLocalReturns.{returning, throwReturn}
 
 object Lox {
   private var hadError = false
@@ -21,13 +22,12 @@ object Lox {
     }
   }
 
-  private def runPrompt(): Unit = {
+  private def runPrompt(): Unit = returning {
     while (true) {
       print("> ")
       val line = readLine()
-      if (line == null) {
-        return
-      }
+      if line == null then throwReturn(())
+
       run(line)
       hadError = false
     }
@@ -39,8 +39,7 @@ object Lox {
     val parser = Parser(tokens)
     val statements = parser.parse()
 
-    if !hadError then
-      interpreter.interpret(statements)
+    if !hadError then interpreter.interpret(statements)
   }
 
   def error(line: Int, message: String): Unit = {
@@ -48,7 +47,7 @@ object Lox {
   }
 
   def error(token: Token, message: String): Unit = {
-    val where = if (token.tokenType == TokenType.EOF) " at end" else s" at '${token.lexeme}'"
+    val where = if token.tokenType == TokenType.EOF then " at end" else s" at '${token.lexeme}'"
     report(token.line, where, message)
   }
 

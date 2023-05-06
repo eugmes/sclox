@@ -1,7 +1,6 @@
 package org.debian.people.eugmes.lox
 
 import scala.annotation.tailrec
-import scala.collection.mutable.ArrayBuffer
 
 class Interpreter {
   val globals: Environment = {
@@ -17,8 +16,7 @@ class Interpreter {
 
   def interpret(statements: Seq[Stmt]): Unit = {
     try
-      for statement <- statements do
-        execute(statement)
+      for statement <- statements do execute(statement)
     catch
       case error: RuntimeError => Lox.runtimeError(error)
   }
@@ -28,9 +26,8 @@ class Interpreter {
       case null => "nil"
       case d: Double =>
         var text = d.toString
-        if (text.endsWith(".0")) {
+        if text.endsWith(".0") then
           text = text.substring(0, text.length - 2)
-        }
         text
       case _ => value.toString
   }
@@ -55,20 +52,16 @@ class Interpreter {
         val value = evaluate(expression)
         println(stringify(value))
       case Stmt.Var(name, initializer) =>
-        val value = if (initializer == null) {
-          null
-        } else {
-          evaluate(initializer)
-        }
+        val value = if initializer == null then null else evaluate(initializer)
         environment.define(name.lexeme, value)
       case Stmt.Block(statements) => executeBlock(statements, Environment(environment))
       case Stmt.If(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
       case Stmt.While(condition, body) => executeWhile(condition, body)
       case Stmt.Function(name, params, body) => environment.define(name.lexeme, LoxFunction(name, params, body))
-      case Stmt.Return(keyword, value) => executeReturn(keyword, value)
+      case Stmt.Return(_keyword, value) => executeReturn(value)
   }
 
-  private def executeReturn(keyword: Token, value: Expr): Nothing = {
+  private def executeReturn(value: Expr): Nothing = {
     val v = if value == null then null else evaluate(value)
     throw Return(v)
   }
@@ -88,11 +81,10 @@ class Interpreter {
   }
 
   private def executeIf(condition: Expr, thenBranch: Stmt, elseBranch: Stmt): Unit = {
-    if (isTruly(evaluate(condition))) {
+    if isTruly(evaluate(condition)) then
       execute(thenBranch)
-    } else if (elseBranch != null) {
+    else if elseBranch != null then
       execute(elseBranch)
-    }
   }
 
   private def checkNumberOperand(token: Token, right: Any): Double = {
@@ -115,9 +107,8 @@ class Interpreter {
     evaluate(callee) match
       case function: LoxCallable =>
         val evalArgs = arguments.map(evaluate)
-        if (evalArgs.length != function.arity) {
+        if evalArgs.length != function.arity then
           throw RuntimeError(paren, s"Expected ${function.arity} arguments but got ${evalArgs.length}.")
-        }
         function.call(this, evalArgs)
       case _ => throw RuntimeError(paren, "Can only call functions and classes.")
   }
@@ -176,12 +167,11 @@ class Interpreter {
   private def evaluateLogical(left: Expr, operator: Token, right: Expr): Any = {
     val l = evaluate(left)
 
-    if (operator.tokenType == TokenType.OR) {
+    if operator.tokenType == TokenType.OR then
       if isTruly(l) then l else evaluate(right)
-    } else {
+    else
       assert(operator.tokenType == TokenType.AND)
       if !isTruly(l) then l else evaluate(right)
-    }
   }
 
   private def isTruly(value: Any): Boolean = {
@@ -192,12 +182,11 @@ class Interpreter {
   }
 
   private def isEqual(left: Any, right: Any): Boolean = {
-    if (left == null && right == null) {
+    if left == null && right == null then
       true
-    } else if (left == null) {
+    else if left == null then
       false
-    } else {
+    else
       left == right
-    }
   }
 }

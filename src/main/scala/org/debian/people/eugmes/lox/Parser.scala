@@ -17,29 +17,20 @@ class Parser(tokens: Seq[Token]) {
   private def previous(): Token = tokens(current - 1)
 
   private def advance(): Token = {
-    if (!isAtEnd) {
-      current += 1
-    }
+    if !isAtEnd then current += 1
     previous()
   }
 
   private def matchToken(tokenTypes: TokenType*): Boolean = returning {
-    for (tokenType <- tokenTypes) {
-      if (check(tokenType)) {
+    for tokenType <- tokenTypes do
+      if check(tokenType) then
         advance()
         throwReturn(true)
-      }
-    }
     false
   }
 
-  private def consume(tokenType: TokenType, message: String): Token = {
-    if (check(tokenType)) {
-      advance()
-    } else {
-      throw error(peek(), message)
-    }
-  }
+  private def consume(tokenType: TokenType, message: String): Token =
+    if check(tokenType) then advance() else throw error(peek(), message)
 
   private def error(token: Token, message: String): ParseError = {
     Lox.error(token, message)
@@ -51,26 +42,23 @@ class Parser(tokens: Seq[Token]) {
   private def assignment(): Expr = {
     val expr = or()
 
-    if (matchToken(TokenType.EQUAL)) {
+    if matchToken(TokenType.EQUAL) then
       val equals = previous()
       val value = assignment()
 
       expr match
         case Expr.Variable(name) => Expr.Assign(name, value)
         case _ => throw error(equals, "Invalid assignment target.")
-    } else {
-      expr
-    }
+    else expr
   }
 
   private def or(): Expr = {
     var expr = and()
 
-    while (matchToken(TokenType.OR)) {
+    while matchToken(TokenType.OR) do
       val operator = previous()
       val right = and()
       expr = Expr.Logical(expr, operator, right)
-    }
 
     expr
   }
@@ -78,22 +66,20 @@ class Parser(tokens: Seq[Token]) {
   private def and(): Expr = {
     var expr = equality()
 
-    while (matchToken(TokenType.OR)) {
+    while matchToken(TokenType.OR) do
       val operator = previous()
       val right = equality()
       expr = Expr.Logical(expr, operator, right)
-    }
 
     expr
   }
 
   private def equality(): Expr = {
     var expr = comparison()
-    while (matchToken(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
+    while matchToken(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL) do
       val operator = previous()
       val right = comparison()
       expr = Expr.Binary(expr, operator, right)
-    }
 
     expr
   }
@@ -101,11 +87,10 @@ class Parser(tokens: Seq[Token]) {
   private def comparison(): Expr = {
     var expr = term()
 
-    while (matchToken(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
+    while matchToken(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL) do
       val operator = previous()
       val right = term()
       expr = Expr.Binary(expr, operator, right)
-    }
 
     expr
   }
@@ -113,11 +98,10 @@ class Parser(tokens: Seq[Token]) {
   private def term(): Expr = {
     var expr = factor()
 
-    while (matchToken(TokenType.MINUS, TokenType.PLUS)) {
+    while matchToken(TokenType.MINUS, TokenType.PLUS) do
       val operator = previous()
       val right = factor()
       expr = Expr.Binary(expr, operator, right)
-    }
 
     expr
   }
@@ -125,22 +109,20 @@ class Parser(tokens: Seq[Token]) {
   private def factor(): Expr = {
     var expr = unary()
 
-    while (matchToken(TokenType.SLASH, TokenType.STAR)) {
+    while matchToken(TokenType.SLASH, TokenType.STAR) do
       val operator = previous()
       val right = unary()
       expr = Expr.Binary(expr, operator, right)
-    }
     expr
   }
 
   private def unary(): Expr = {
-    if (matchToken(TokenType.BANG, TokenType.MINUS)) {
+    if matchToken(TokenType.BANG, TokenType.MINUS) then
       val operator = previous()
       val right = unary()
       Expr.Unary(operator, right)
-    } else {
+    else
       call()
-    }
   }
 
   private def call(): Expr = {
@@ -154,59 +136,46 @@ class Parser(tokens: Seq[Token]) {
 
   private def finishCall(callee: Expr): Expr = {
     val arguments: ArrayBuffer[Expr] = ArrayBuffer()
-    if (!check(TokenType.RIGHT_PAREN)) {
-      arguments.append(expression())
-      while matchToken(TokenType.COMMA) do
-        if (arguments.length >= 255) {
+    if !check(TokenType.RIGHT_PAREN) then
+      while
+        if arguments.length >= 255 then
           error(peek(), "Can't have more than 255 arguments.")
-        }
         arguments.append(expression())
-    }
+        matchToken(TokenType.COMMA)
+      do ()
+
     val paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
     Expr.Call(callee, paren, arguments.toSeq)
   }
 
   private def primary(): Expr = {
-    if (matchToken(TokenType.FALSE)) {
-      Expr.Literal(false)
-    } else if (matchToken(TokenType.TRUE)) {
-      Expr.Literal(true)
-    } else if (matchToken(TokenType.NIL)) {
-      Expr.Literal(null)
-    } else if (matchToken(TokenType.NUMBER, TokenType.STRING)) {
-      Expr.Literal(previous().literal)
-    } else if (matchToken(TokenType.IDENTIFIER)) {
-      Expr.Variable(previous())
-    } else if (matchToken(TokenType.LEFT_PAREN)) {
+    if matchToken(TokenType.FALSE) then Expr.Literal(false)
+    else if matchToken(TokenType.TRUE) then Expr.Literal(true)
+    else if matchToken(TokenType.NIL) then Expr.Literal(null)
+    else if matchToken(TokenType.NUMBER, TokenType.STRING) then Expr.Literal(previous().literal)
+    else if (matchToken(TokenType.IDENTIFIER)) then Expr.Variable(previous())
+    else if (matchToken(TokenType.LEFT_PAREN)) then
       val expr = expression()
       consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.")
       Expr.Grouping(expr)
-    } else {
-      throw error(peek(), "Expect expression.")
-    }
+    else throw error(peek(), "Expect expression.")
   }
 
   private def synchronize(): Unit = returning {
     advance()
-    while (!isAtEnd) {
-      if (previous().tokenType == TokenType.SEMICOLON) {
-        throwReturn(())
-      }
+    while !isAtEnd do
+      if previous().tokenType == TokenType.SEMICOLON then throwReturn(())
       peek().tokenType match
-        case TokenType.CLASS | TokenType.FOR | TokenType.FUN | TokenType.IF | TokenType.PRINT | TokenType.RETURN | TokenType.VAR | TokenType.VAR => throwReturn(())
+        case TokenType.CLASS | TokenType.FOR | TokenType.FUN | TokenType.IF | TokenType.PRINT | TokenType.RETURN
+             | TokenType.VAR | TokenType.VAR => throwReturn(())
         case _ => advance()
-    }
   }
 
   private def declaration(): Stmt = {
     try
-      if (matchToken(TokenType.VAR)) {
-        varDeclaration()
-      } else if (matchToken(TokenType.FUN)) {
-        function("function")
-      } else {
-        statement()
-      }
+      if matchToken(TokenType.VAR) then varDeclaration()
+      else if matchToken(TokenType.FUN) then function("function")
+      else statement()
     catch
       case _: ParseError =>
         synchronize()
@@ -217,15 +186,13 @@ class Parser(tokens: Seq[Token]) {
     val name = consume(TokenType.IDENTIFIER, s"Expect $kind name.")
     consume(TokenType.LEFT_PAREN, s"Expect '(' after $kind name.")
     val parameters: ArrayBuffer[Token] = ArrayBuffer()
-    if (!check(TokenType.RIGHT_PAREN)) {
+    if !check(TokenType.RIGHT_PAREN) then
       while
-        if (parameters.length >= 255) {
+        if parameters.length >= 255 then
           error(peek(), "Can't have more than 255 parameters.")
-        }
         parameters.append(consume(TokenType.IDENTIFIER, "Expect parameter name."))
         matchToken(TokenType.COMMA)
       do ()
-    }
     consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
 
     consume(TokenType.LEFT_BRACE, s"Expect '{' before $kind body")
@@ -235,31 +202,19 @@ class Parser(tokens: Seq[Token]) {
 
   private def varDeclaration(): Stmt = {
     val name = consume(TokenType.IDENTIFIER, "Expect variable name.")
-    val initializer = if (matchToken(TokenType.EQUAL)) {
-      expression()
-    } else {
-      null
-    }
+    val initializer = if matchToken(TokenType.EQUAL) then expression() else null
     consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
     Stmt.Var(name, initializer)
   }
 
   private def statement(): Stmt = {
-    if (matchToken(TokenType.PRINT)) {
-      printStatement()
-    } else if (matchToken(TokenType.LEFT_BRACE)) {
-      Stmt.Block(block())
-    } else if (matchToken(TokenType.IF)) {
-      ifStatement()
-    } else if (matchToken(TokenType.WHILE)) {
-      whileStatement()
-    } else if (matchToken(TokenType.FOR)) {
-      forStatement()
-    } else if (matchToken(TokenType.RETURN)) {
-      returnStatement()
-    } else {
-      expressionStatement()
-    }
+    if matchToken(TokenType.PRINT) then printStatement()
+    else if matchToken(TokenType.LEFT_BRACE) then Stmt.Block(block())
+    else if matchToken(TokenType.IF) then ifStatement()
+    else if matchToken(TokenType.WHILE) then whileStatement()
+    else if matchToken(TokenType.FOR) then forStatement()
+    else if matchToken(TokenType.RETURN) then returnStatement()
+    else expressionStatement()
   }
 
   private def returnStatement(): Stmt = {
@@ -272,39 +227,25 @@ class Parser(tokens: Seq[Token]) {
   private def forStatement(): Stmt = {
     consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
 
-    val initializer = if (matchToken(TokenType.SEMICOLON)) {
-      null
-    } else if (matchToken(TokenType.VAR)) {
-      varDeclaration()
-    } else {
-      expressionStatement()
-    }
+    val initializer = if matchToken(TokenType.SEMICOLON) then null
+    else if matchToken(TokenType.VAR) then varDeclaration()
+    else expressionStatement()
 
-    val condition = if (check(TokenType.SEMICOLON)) {
-      Expr.Literal(true)
-    } else {
-      expression()
-    }
+    val condition = if check(TokenType.SEMICOLON) then Expr.Literal(true) else expression()
     consume(TokenType.SEMICOLON, "Expect ';' after loop condition.")
 
-    val increment = if (check(TokenType.RIGHT_PAREN)) {
-      null
-    } else {
-      expression()
-    }
+    val increment = if check(TokenType.RIGHT_PAREN) then null else expression()
     consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.")
 
     var body = statement()
 
-    if (increment != null) {
+    if increment != null then
       body = Stmt.Block(Seq(body, Stmt.Expression(increment)))
-    }
 
     body = Stmt.While(condition, body)
 
-    if (initializer != null) {
+    if initializer != null then
       body = Stmt.Block(Seq(initializer, body))
-    }
 
     body
   }
@@ -331,9 +272,8 @@ class Parser(tokens: Seq[Token]) {
   private def block(): Seq[Stmt] = {
     val statements: ArrayBuffer[Stmt] = ArrayBuffer()
 
-    while (!check(TokenType.RIGHT_BRACE) && !isAtEnd) {
+    while !check(TokenType.RIGHT_BRACE) && !isAtEnd do
       statements.append(declaration())
-    }
 
     consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
     statements.toSeq
@@ -353,9 +293,7 @@ class Parser(tokens: Seq[Token]) {
 
   def parse(): Seq[Stmt] = {
     val statements: ArrayBuffer[Stmt] = ArrayBuffer()
-    while (!isAtEnd) {
-      statements.append(declaration())
-    }
+    while !isAtEnd do statements.append(declaration())
     statements.toSeq
   }
 }
