@@ -4,7 +4,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
 class Interpreter {
-  private val globals = {
+  val globals: Environment = {
     val globals = Environment()
     globals.define("clock", new LoxCallable {
       override def arity: Int = 0
@@ -64,13 +64,20 @@ class Interpreter {
       case Stmt.Block(statements) => executeBlock(statements, Environment(environment))
       case Stmt.If(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
       case Stmt.While(condition, body) => executeWhile(condition, body)
+      case Stmt.Function(name, params, body) => environment.define(name.lexeme, LoxFunction(name, params, body))
+      case Stmt.Return(keyword, value) => executeReturn(keyword, value)
+  }
+
+  private def executeReturn(keyword: Token, value: Expr): Nothing = {
+    val v = if value == null then null else evaluate(value)
+    throw Return(v)
   }
 
   private def executeWhile(condition: Expr, body: Stmt): Unit = {
     while isTruly(evaluate(condition)) do execute(body)
   }
 
-  private def executeBlock(statements: Seq[Stmt], environment: Environment): Unit = {
+  def executeBlock(statements: Seq[Stmt], environment: Environment): Unit = {
     val previous = this.environment
     try
       this.environment = environment

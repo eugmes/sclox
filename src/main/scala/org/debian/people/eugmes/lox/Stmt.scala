@@ -7,3 +7,5 @@ enum Stmt:
   case Block(statements: Seq[Stmt])
   case If(condition: Expr, thenBranch: Stmt, elseBranch: Stmt)
   case While(condition: Expr, body: Stmt)
+  case Function(name: Token, params: Seq[Token], body: Seq[Stmt])
+  case Return(keyword: Token, value: Expr)

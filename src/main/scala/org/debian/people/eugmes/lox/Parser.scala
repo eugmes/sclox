@@ -202,6 +202,8 @@ class Parser(tokens: Seq[Token]) {
     try
       if (matchToken(TokenType.VAR)) {
         varDeclaration()
+      } else if (matchToken(TokenType.FUN)) {
+        function("function")
       } else {
         statement()
       }
@@ -209,6 +211,26 @@ class Parser(tokens: Seq[Token]) {
       case _: ParseError =>
         synchronize()
         null
+  }
+
+  private def function(kind: String): Stmt = {
+    val name = consume(TokenType.IDENTIFIER, s"Expect $kind name.")
+    consume(TokenType.LEFT_PAREN, s"Expect '(' after $kind name.")
+    val parameters: ArrayBuffer[Token] = ArrayBuffer()
+    if (!check(TokenType.RIGHT_PAREN)) {
+      while
+        if (parameters.length >= 255) {
+          error(peek(), "Can't have more than 255 parameters.")
+        }
+        parameters.append(consume(TokenType.IDENTIFIER, "Expect parameter name."))
+        matchToken(TokenType.COMMA)
+      do ()
+    }
+    consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
+
+    consume(TokenType.LEFT_BRACE, s"Expect '{' before $kind body")
+    val body = block()
+    Stmt.Function(name, parameters.toSeq, body)
   }
 
   private def varDeclaration(): Stmt = {
@@ -233,9 +255,18 @@ class Parser(tokens: Seq[Token]) {
       whileStatement()
     } else if (matchToken(TokenType.FOR)) {
       forStatement()
+    } else if (matchToken(TokenType.RETURN)) {
+      returnStatement()
     } else {
       expressionStatement()
     }
+  }
+
+  private def returnStatement(): Stmt = {
+    val keyword = previous()
+    val value = if check(TokenType.SEMICOLON) then null else expression()
+    consume(TokenType.SEMICOLON, "Expect ';' after return value.")
+    Stmt.Return(keyword, value)
   }
 
   private def forStatement(): Stmt = {
