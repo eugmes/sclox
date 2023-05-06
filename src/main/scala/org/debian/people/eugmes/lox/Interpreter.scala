@@ -3,11 +3,13 @@ package org.debian.people.eugmes.lox
 import scala.annotation.tailrec
 
 class Interpreter {
-  val globals: Environment = {
+  private val globals: Environment = {
     val globals = Environment()
     globals.define("clock", new LoxCallable {
       override def arity: Int = 0
+
       override def call(interpreter: Interpreter, arguments: Seq[Any]): Any = System.currentTimeMillis().toDouble / 1000.0
+
       override def toString: String = "<native fn>"
     })
     globals
@@ -57,7 +59,7 @@ class Interpreter {
       case Stmt.Block(statements) => executeBlock(statements, Environment(environment))
       case Stmt.If(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
       case Stmt.While(condition, body) => executeWhile(condition, body)
-      case Stmt.Function(name, params, body) => environment.define(name.lexeme, LoxFunction(name, params, body))
+      case Stmt.Function(name, params, body) => environment.define(name.lexeme, LoxFunction(name, params, body, environment))
       case Stmt.Return(_keyword, value) => executeReturn(value)
   }
 
