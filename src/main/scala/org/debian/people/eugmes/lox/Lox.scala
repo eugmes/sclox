@@ -5,6 +5,9 @@ import scala.io.StdIn.readLine
 
 object Lox {
   private var hadError = false
+  private var hadRuntimeError = false
+
+  private val interpreter = Interpreter()
 
   private def runFile(fileName: String): Unit = {
     val source = Source.fromFile(fileName)
@@ -12,6 +15,9 @@ object Lox {
     run(text)
     if (hadError) {
       System.exit(65)
+    }
+    if (hadRuntimeError) {
+      System.exit(70)
     }
   }
 
@@ -30,14 +36,25 @@ object Lox {
   private def run(source: String): Unit = {
     val scanner = Scanner(source)
     val tokens = scanner.scanTokens()
+    val parser = Parser(tokens)
+    val statements = parser.parse()
 
-    for (token <- tokens) {
-      println(token)
-    }
+    if !hadError then
+      interpreter.interpret(statements)
   }
 
   def error(line: Int, message: String): Unit = {
     report(line, "", message)
+  }
+
+  def error(token: Token, message: String): Unit = {
+    val where = if (token.tokenType == TokenType.EOF) " at end" else s" at '${token.lexeme}'"
+    report(token.line, where, message)
+  }
+
+  def runtimeError(error: RuntimeError): Unit = {
+    Console.err.println(s"${error.getMessage}\n[line ${error.token.line}]")
+    hadRuntimeError = true
   }
 
   private def report(line: Int, where: String, message: String): Unit = {
