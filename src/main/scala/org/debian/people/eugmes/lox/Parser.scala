@@ -49,7 +49,7 @@ class Parser(tokens: Seq[Token]) {
   private def expression(): Expr = assignment()
 
   private def assignment(): Expr = {
-    var expr = equality()
+    var expr = or()
 
     if (matchToken(TokenType.EQUAL)) {
       val equals = previous()
@@ -61,6 +61,30 @@ class Parser(tokens: Seq[Token]) {
     } else {
       expr
     }
+  }
+
+  private def or(): Expr = {
+    var expr = and()
+
+    while (matchToken(TokenType.OR)) {
+      val operator = previous()
+      val right = and()
+      expr = LogicalExpr(expr, operator, right)
+    }
+
+    expr
+  }
+
+  private def and(): Expr = {
+    var expr = equality()
+
+    while (matchToken(TokenType.OR)) {
+      val operator = previous()
+      val right = equality()
+      expr = LogicalExpr(expr, operator, right)
+    }
+
+    expr
   }
 
   private def equality(): Expr = {

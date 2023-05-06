@@ -34,6 +34,7 @@ class Interpreter {
       case LiteralExpr(value) => value
       case VariableExpr(name) => environment.get(name)
       case AssignExpr(name, value) => evaluateAssign(name, value)
+      case LogicalExpr(left, operator, right) => evaluateLogical(left, operator, right)
   }
 
   private def execute(stmt: Stmt): Unit = {
@@ -138,6 +139,17 @@ class Interpreter {
         val (l, r) = checkNumberOperands(token, leftValue, rightValue)
         l * r
       case _ => ???
+  }
+
+  private def evaluateLogical(left: Expr, operator: Token, right: Expr): Any = {
+    val l = evaluate(left)
+
+    if (operator.tokenType == TokenType.OR) {
+      if isTruly(l) then l else evaluate(right)
+    } else {
+      assert(operator.tokenType == TokenType.AND)
+      if !isTruly(l) then l else evaluate(right)
+    }
   }
 
   private def isTruly(value: Any): Boolean = {
