@@ -1,7 +1,5 @@
 package org.debian.people.eugmes.lox
 
-import org.debian.people.eugmes.lox.Scanner.keywords
-
 import scala.collection.immutable.HashMap
 import scala.collection.mutable.ArrayBuffer
 
@@ -135,14 +133,14 @@ class Scanner(source: String) {
     }
 
     val text = source.substring(start, current)
-    val tokenType = keywords.getOrElse(text, TokenType.IDENTIFIER)
+    val tokenType = Scanner.keywords.getOrElse(text, TokenType.IDENTIFIER)
 
     addToken(tokenType)
   }
 }
 
-object Scanner {
-  val keywords: HashMap[String, TokenType] = HashMap(
+private object Scanner {
+  private val keywords: HashMap[String, TokenType] = HashMap(
     "and" -> TokenType.AND,
     "class" -> TokenType.CLASS,
     "else" -> TokenType.ELSE,
