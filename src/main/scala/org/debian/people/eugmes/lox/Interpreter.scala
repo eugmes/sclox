@@ -134,7 +134,7 @@ class Interpreter {
           case _ => throw RuntimeError(token, "Operands must be two numbers or two strings")
       case TokenType.MINUS =>
         val (l, r) = checkNumberOperands(token, leftValue, rightValue)
-        l + r
+        l - r
       case TokenType.SLASH =>
         val (l, r) = checkNumberOperands(token, leftValue, rightValue)
         l / r
