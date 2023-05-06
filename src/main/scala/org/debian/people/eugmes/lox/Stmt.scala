@@ -6,3 +6,4 @@ enum Stmt:
   case Var(name: Token, initializer: Expr)
   case Block(statements: Seq[Stmt])
   case If(condition: Expr, thenBranch: Stmt, elseBranch: Stmt)
+  case While(condition: Expr, body: Stmt)

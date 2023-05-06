@@ -206,9 +206,62 @@ class Parser(tokens: Seq[Token]) {
       Stmt.Block(block())
     } else if (matchToken(TokenType.IF)) {
       ifStatement()
+    } else if (matchToken(TokenType.WHILE)) {
+      whileStatement()
+    } else if (matchToken(TokenType.FOR)) {
+      forStatement()
     } else {
       expressionStatement()
     }
+  }
+
+  private def forStatement(): Stmt = {
+    consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
+
+    val initializer = if (matchToken(TokenType.SEMICOLON)) {
+      null
+    } else if (matchToken(TokenType.VAR)) {
+      varDeclaration()
+    } else {
+      expressionStatement()
+    }
+
+    val condition = if (check(TokenType.SEMICOLON)) {
+      Expr.Literal(true)
+    } else {
+      expression()
+    }
+    consume(TokenType.SEMICOLON, "Expect ';' after loop condition.")
+
+    val increment = if (check(TokenType.RIGHT_PAREN)) {
+      null
+    } else {
+      expression()
+    }
+    consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.")
+
+    var body = statement()
+
+    if (increment != null) {
+      body = Stmt.Block(Seq(body, Stmt.Expression(increment)))
+    }
+
+    body = Stmt.While(condition, body)
+
+    if (initializer != null) {
+      body = Stmt.Block(Seq(initializer, body))
+    }
+
+    body
+  }
+
+  private def whileStatement(): Stmt = {
+    consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
+    val condition = expression()
+    consume(TokenType.RIGHT_PAREN, "Expect ')' after while condition.")
+    val body = statement()
+
+    Stmt.While(condition, body)
   }
 
   private def ifStatement(): Stmt = {

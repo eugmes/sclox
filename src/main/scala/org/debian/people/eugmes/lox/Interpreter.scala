@@ -52,6 +52,11 @@ class Interpreter {
         environment.define(name.lexeme, value)
       case Stmt.Block(statements) => executeBlock(statements, Environment(environment))
       case Stmt.If(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
+      case Stmt.While(condition, body) => executeWhile(condition, body)
+  }
+
+  private def executeWhile(condition: Expr, body: Stmt): Unit = {
+    while isTruly(evaluate(condition)) do execute(body)
   }
 
   private def executeBlock(statements: Seq[Stmt], environment: Environment): Unit = {
