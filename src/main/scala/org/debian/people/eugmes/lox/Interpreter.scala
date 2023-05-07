@@ -1,6 +1,10 @@
 package org.debian.people.eugmes.lox
 
+import sun.jvm.hotspot.runtime.VM
+
+import java.util
 import scala.annotation.tailrec
+import scala.collection.mutable
 
 class Interpreter {
   private val globals: Environment = {
@@ -8,13 +12,16 @@ class Interpreter {
     globals.define("clock", new LoxCallable {
       override def arity: Int = 0
 
-      override def call(interpreter: Interpreter, arguments: Seq[Any]): Any = System.currentTimeMillis().toDouble / 1000.0
+      override def call(interpreter: Interpreter, arguments: Seq[LoxValue]): LoxValue = System.currentTimeMillis().toDouble / 1000.0
 
       override def toString: String = "<native fn>"
     })
     globals
   }
   private var environment = globals
+  // Map of distances to perform variable lookup for different expressions.
+  // Identities must be used here because distances may be different for identical expressions.
+  private val locals = util.IdentityHashMap[Expr, Integer]()
 
   def interpret(statements: Seq[Stmt]): Unit = {
     try
@@ -23,7 +30,7 @@ class Interpreter {
       case error: RuntimeError => Lox.runtimeError(error)
   }
 
-  private def stringify(value: Any): String = {
+  private def stringify(value: LoxValue): String = {
     value match
       case null => "nil"
       case d: Double =>
@@ -35,14 +42,14 @@ class Interpreter {
   }
 
   @tailrec
-  private def evaluate(expression: Expr): Any = {
+  private def evaluate(expression: Expr): LoxValue = {
     expression match
       case Expr.Grouping(expression) => evaluate(expression)
       case Expr.Unary(operator, right) => evaluateUnary(operator, right)
       case Expr.Binary(left, operator, right) => evaluateBinary(left, operator, right)
       case Expr.Literal(value) => value
-      case Expr.Variable(name) => environment.get(name)
-      case Expr.Assign(name, value) => evaluateAssign(name, value)
+      case Expr.Variable(name) => lookupVariable(name, expression)
+      case Expr.Assign(name, value) => evaluateAssign(name, expression, value)
       case Expr.Logical(left, operator, right) => evaluateLogical(left, operator, right)
       case Expr.Call(callee, paren, arguments) => evaluateCall(callee, paren, arguments)
   }
@@ -60,7 +67,7 @@ class Interpreter {
       case Stmt.If(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
       case Stmt.While(condition, body) => executeWhile(condition, body)
       case Stmt.Function(name, params, body) => environment.define(name.lexeme, LoxFunction(name, params, body, environment))
-      case Stmt.Return(_keyword, value) => executeReturn(value)
+      case Stmt.Return(_, value) => executeReturn(value)
   }
 
   private def executeReturn(value: Expr): Nothing = {
@@ -79,7 +86,6 @@ class Interpreter {
       for statement <- statements do execute(statement)
     finally
       this.environment = previous
-
   }
 
   private def executeIf(condition: Expr, thenBranch: Stmt, elseBranch: Stmt): Unit = {
@@ -89,13 +95,13 @@ class Interpreter {
       execute(elseBranch)
   }
 
-  private def checkNumberOperand(token: Token, right: Any): Double = {
+  private def checkNumberOperand(token: Token, right: LoxValue): Double = {
     right match
       case d: Double => d
       case _ => throw RuntimeError(token, "Right operand must be a number.")
   }
 
-  private def checkNumberOperands(token: Token, left: Any, right: Any): (Double, Double) = {
+  private def checkNumberOperands(token: Token, left: LoxValue, right: LoxValue): (Double, Double) = {
     val leftValue = left match
       case d: Double => d
       case _ => throw RuntimeError(token, "Left operand must be a number.")
@@ -105,7 +111,7 @@ class Interpreter {
     (leftValue, rightValue)
   }
 
-  private def evaluateCall(callee: Expr, paren: Token, arguments: Seq[Expr]): Any = {
+  private def evaluateCall(callee: Expr, paren: Token, arguments: Seq[Expr]): LoxValue = {
     evaluate(callee) match
       case function: LoxCallable =>
         val evalArgs = arguments.map(evaluate)
@@ -115,13 +121,14 @@ class Interpreter {
       case _ => throw RuntimeError(paren, "Can only call functions and classes.")
   }
 
-  private def evaluateAssign(name: Token, expr: Expr): Any = {
-    val value = evaluate(expr)
-    environment.assign(name, value)
-    value
+  private def evaluateAssign(name: Token, expr: Expr, value: Expr): LoxValue = {
+    val evaluated = evaluate(value)
+    val distance = locals.get(expr)
+    if distance == null then globals.assign(name, evaluated) else environment.assignAt(distance, name, evaluated)
+    evaluated
   }
 
-  private def evaluateUnary(token: Token, right: Expr): Any = {
+  private def evaluateUnary(token: Token, right: Expr): LoxValue = {
     val rightValue = evaluate(right)
 
     token.tokenType match
@@ -130,7 +137,7 @@ class Interpreter {
       case _ => assert(false)
   }
 
-  private def evaluateBinary(left: Expr, token: Token, right: Expr): Any = {
+  private def evaluateBinary(left: Expr, token: Token, right: Expr): LoxValue = {
     val leftValue = evaluate(left)
     val rightValue = evaluate(right)
 
@@ -166,7 +173,7 @@ class Interpreter {
       case _ => assert(false)
   }
 
-  private def evaluateLogical(left: Expr, operator: Token, right: Expr): Any = {
+  private def evaluateLogical(left: Expr, operator: Token, right: Expr): LoxValue = {
     val l = evaluate(left)
 
     if operator.tokenType == TokenType.OR then
@@ -176,19 +183,26 @@ class Interpreter {
       if !isTruly(l) then l else evaluate(right)
   }
 
-  private def isTruly(value: Any): Boolean = {
+  private def isTruly(value: LoxValue): Boolean = {
     value match
       case null => false
       case b: Boolean => b
       case _ => true
   }
 
-  private def isEqual(left: Any, right: Any): Boolean = {
+  private def isEqual(left: LoxValue, right: LoxValue): Boolean = {
     if left == null && right == null then
       true
     else if left == null then
       false
     else
       left == right
+  }
+
+  def resolve(expr: Expr, depth: Int): Unit = locals.put(expr, depth)
+
+  private def lookupVariable(name: Token, expr: Expr): LoxValue = {
+    val distance = locals.get(expr)
+    if distance == null then globals.get(name) else environment.getAt(distance, name.lexeme).get
   }
 }

@@ -67,7 +67,7 @@ class Scanner(source: String) {
     c
   }
 
-  private def addToken(tokenType: TokenType, literal: Any = null): Unit = {
+  private def addToken(tokenType: TokenType, literal: LiteralValue = null): Unit = {
     val text = source.substring(start, current)
     tokens.append(Token(tokenType, text, literal, line))
   }

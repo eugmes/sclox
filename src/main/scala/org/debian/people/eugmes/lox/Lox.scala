@@ -33,13 +33,20 @@ object Lox {
     }
   }
 
-  private def run(source: String): Unit = {
+  private def run(source: String): Unit = returning {
     val scanner = Scanner(source)
     val tokens = scanner.scanTokens()
     val parser = Parser(tokens)
     val statements = parser.parse()
 
-    if !hadError then interpreter.interpret(statements)
+    if hadError then throwReturn(())
+
+    val resolver = Resolver(interpreter)
+    resolver.resolve(statements)
+
+    if hadError then throwReturn(())
+
+    interpreter.interpret(statements)
   }
 
   def error(line: Int, message: String): Unit = {

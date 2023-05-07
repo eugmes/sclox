@@ -3,7 +3,7 @@ package org.debian.people.eugmes.lox
 enum Expr:
   case Binary(left: Expr, operator: Token, right: Expr)
   case Grouping(expression: Expr)
-  case Literal(value: Any)
+  case Literal(value: LiteralValue)
   case Unary(operator: Token, right: Expr)
   case Variable(name: Token)
   case Assign(name: Token, value: Expr)
