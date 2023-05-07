@@ -51,6 +51,9 @@ final class Interpreter:
       case Expr.Assign(name, value) => evaluateAssign(name, expression, value)
       case Expr.Logical(left, operator, right) => evaluateLogical(left, operator, right)
       case Expr.Call(callee, paren, arguments) => evaluateCall(callee, paren, arguments)
+      case Expr.Get(obj, name) => evaluateGet(obj, name)
+      case Expr.Set(obj, name, value) => evaluateSet(obj, name, value)
+      case Expr.This(keyword) => lookupVariable(keyword, expression)
 
   private def execute(stmt: Stmt): Unit =
     stmt match
@@ -64,8 +67,24 @@ final class Interpreter:
       case Stmt.Block(statements) => executeBlock(statements, Environment(environment))
       case Stmt.If(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
       case Stmt.While(condition, body) => executeWhile(condition, body)
-      case Stmt.Function(name, params, body) => environment.define(name.lexeme, LoxFunction(name, params, body, environment))
+      case Stmt.Function(name, _, _) =>
+        environment.define(name.lexeme, LoxFunction(stmt.asInstanceOf[Stmt.Function], environment, false))
       case Stmt.Return(_, value) => executeReturn(value)
+      case Stmt.Class(name, methods) => executeClass(name, methods)
+
+  private def executeClass(name: Token, methods: Seq[Stmt.Function]): Unit =
+    environment.define(name.lexeme, null)
+
+    val methodFunctions = mutable.HashMap[String, LoxFunction]()
+    for method <- methods do
+      val methodName = method.name.lexeme
+      val isInitializer = methodName == "init"
+      val function = LoxFunction(method, environment, isInitializer)
+      methodFunctions.put(methodName, function)
+
+    val klass = LoxClass(name.lexeme, methodFunctions.toMap)
+
+    environment.assign(name, klass)
 
   private def executeReturn(value: Expr): Nothing =
     val v = if value == null then null else evaluate(value)
@@ -101,6 +120,21 @@ final class Interpreter:
       case d: Double => d
       case _ => throw RuntimeError(token, "Right operand must be a number.")
     (leftValue, rightValue)
+
+  private def evaluateSet(obj: Expr, name: Token, value: Expr): LoxValue =
+    val objValue = evaluate(obj)
+    objValue match
+      case obj: LoxInstance =>
+        val evaluatedValue = evaluate(value)
+        obj.set(name, evaluatedValue)
+        evaluatedValue
+      case _ => throw RuntimeError(name, "Only instances have fields.")
+
+  private def evaluateGet(obj: Expr, name: Token): LoxValue =
+    val objValue = evaluate(obj)
+    objValue match
+      case obj: LoxInstance => obj.get(name)
+      case _ => throw RuntimeError(name, "Only instances have properties.")
 
   private def evaluateCall(callee: Expr, paren: Token, arguments: Seq[Expr]): LoxValue =
     evaluate(callee) match

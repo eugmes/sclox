@@ -3,7 +3,7 @@ package org.debian.people.eugmes.lox
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-type LoxValue = LiteralValue | LoxCallable
+type LoxValue = LiteralValue | LoxCallable | LoxInstance
 
 final class Environment(private val enclosing: Environment = null):
   private val values: mutable.HashMap[String, LoxValue] = mutable.HashMap()

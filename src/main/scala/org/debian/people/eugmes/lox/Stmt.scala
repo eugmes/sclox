@@ -9,4 +9,5 @@ enum Stmt:
   case While(condition: Expr, body: Stmt)
   case Function(name: Token, params: Seq[Token], body: Seq[Stmt])
   case Return(keyword: Token, value: Expr)
+  case Class(name: Token, methods: Seq[Stmt.Function])
 end Stmt

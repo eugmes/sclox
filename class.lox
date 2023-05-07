@@ -1,0 +1,18 @@
+class Breakfast {
+    init(who) {
+        this.who = who;
+    }
+    cook() {
+        print "Eggs a-fryin'";
+    }
+
+    serve() {
+        print "Enjoy your breakfast, " + this.who + ".";
+    }
+}
+
+var obj = Breakfast("customer");
+obj.field = 42;
+print obj.field;
+obj.cook();
+obj.serve();

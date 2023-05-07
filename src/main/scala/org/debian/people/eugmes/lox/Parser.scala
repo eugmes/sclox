@@ -1,6 +1,7 @@
 package org.debian.people.eugmes.lox
 
 import scala.collection.mutable.ArrayBuffer
+import scala.util.control.Breaks.{break, breakable}
 import scala.util.control.NonLocalReturns.{returning, throwReturn}
 
 final class Parser(tokens: Seq[Token]):
@@ -46,6 +47,7 @@ final class Parser(tokens: Seq[Token]):
 
       expr match
         case Expr.Variable(name) => Expr.Assign(name, value)
+        case Expr.Get(obj, name) => Expr.Set(obj, name, value)
         case _ => throw error(equals, "Invalid assignment target.")
     else expr
 
@@ -118,8 +120,16 @@ final class Parser(tokens: Seq[Token]):
   private def call(): Expr =
     var expr = primary()
 
-    while matchToken(TokenType.LEFT_PAREN) do
-      expr = finishCall(expr)
+    breakable {
+      while true do
+        if matchToken(TokenType.LEFT_PAREN) then
+          expr = finishCall(expr)
+        else if matchToken(TokenType.DOT) then
+          val name = consume(TokenType.IDENTIFIER, "Expect property name after '.'.")
+          expr = Expr.Get(expr, name)
+        else
+          break
+    }
 
     expr
 
@@ -141,6 +151,7 @@ final class Parser(tokens: Seq[Token]):
     else if matchToken(TokenType.TRUE) then Expr.Literal(true)
     else if matchToken(TokenType.NIL) then Expr.Literal(null)
     else if matchToken(TokenType.NUMBER, TokenType.STRING) then Expr.Literal(previous().literal)
+    else if matchToken(TokenType.THIS) then Expr.This(previous())
     else if matchToken(TokenType.IDENTIFIER) then Expr.Variable(previous())
     else if matchToken(TokenType.LEFT_PAREN) then
       val expr = expression()
@@ -161,6 +172,7 @@ final class Parser(tokens: Seq[Token]):
   private def declaration(): Stmt =
     try
       if matchToken(TokenType.VAR) then varDeclaration()
+      else if matchToken(TokenType.CLASS) then classDeclaration()
       else if matchToken(TokenType.FUN) then function("function")
       else statement()
     catch
@@ -168,7 +180,18 @@ final class Parser(tokens: Seq[Token]):
         synchronize()
         null
 
-  private def function(kind: String): Stmt =
+  private def classDeclaration(): Stmt =
+    val name = consume(TokenType.IDENTIFIER, "Expect class name.")
+    consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
+
+    val methods = ArrayBuffer[Stmt.Function]()
+    while !check(TokenType.RIGHT_BRACE) && !isAtEnd do
+      methods.append(function("method"))
+
+    consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
+    Stmt.Class(name, methods.toSeq)
+
+  private def function(kind: String): Stmt.Function =
     val name = consume(TokenType.IDENTIFIER, s"Expect $kind name.")
     consume(TokenType.LEFT_PAREN, s"Expect '(' after $kind name.")
     val parameters: ArrayBuffer[Token] = ArrayBuffer()

@@ -9,4 +9,7 @@ enum Expr:
   case Assign(name: Token, value: Expr)
   case Logical(left: Expr, operator: Token, right: Expr)
   case Call(callee: Expr, paren: Token, arguments: Seq[Expr])
+  case Get(obj: Expr, name: Token)
+  case Set(obj: Expr, name: Token, value: Expr)
+  case This(keyword: Token)
 end Expr
