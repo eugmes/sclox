@@ -23,7 +23,7 @@ private val keywords: HashMap[String, TokenType] = HashMap(
   "while" -> TokenType.WHILE,
 )
 
-class Scanner(source: String) {
+class Scanner(source: String):
   private val tokens: ArrayBuffer[Token] = ArrayBuffer()
   private var start = 0
   private var current = 0
@@ -40,7 +40,7 @@ class Scanner(source: String) {
 
   private def isAtEnd = current >= source.length
 
-  private def scanToken(): Unit = {
+  private def scanToken(): Unit =
     val c = advance()
     c match
       case '(' => addToken(TokenType.LEFT_PAREN)
@@ -53,51 +53,43 @@ class Scanner(source: String) {
       case '+' => addToken(TokenType.PLUS)
       case ';' => addToken(TokenType.SEMICOLON)
       case '*' => addToken(TokenType.STAR)
-      case '!' => addToken(if (tryMatch('=')) TokenType.BANG_EQUAL else TokenType.BANG)
-      case '=' => addToken(if (tryMatch('=')) TokenType.EQUAL_EQUAL else TokenType.EQUAL)
-      case '<' => addToken(if (tryMatch('=')) TokenType.LESS_EQUAL else TokenType.LESS)
-      case '>' => addToken(if (tryMatch('=')) TokenType.GREATER_EQUAL else TokenType.GREATER)
+      case '!' => addToken(if tryMatch('=') then TokenType.BANG_EQUAL else TokenType.BANG)
+      case '=' => addToken(if tryMatch('=') then TokenType.EQUAL_EQUAL else TokenType.EQUAL)
+      case '<' => addToken(if tryMatch('=') then TokenType.LESS_EQUAL else TokenType.LESS)
+      case '>' => addToken(if tryMatch('=') then TokenType.GREATER_EQUAL else TokenType.GREATER)
       case '/' =>
-        if (tryMatch('/')) {
+        if tryMatch('/') then
           // A comment goes until the end of the line.
-          while (!isAtEnd && peek() != '\n') {
-            advance()
-          }
-        } else {
+          while !isAtEnd && peek() != '\n' do advance()
+        else
           addToken(TokenType.SLASH)
-        }
       case ' ' | '\r' | '\t' => // Ignore whitespace
       case '\n' => line += 1
       case '"' => string()
       case _ =>
-        if (isDigit(c)) {
+        if isDigit(c) then
           number()
-        } else if (isAlpha(c)) {
+        else if isAlpha(c) then
           identifier()
-        } else {
+        else
           Lox.error(line, "Unexpected character.")
-        }
-  }
 
   /** Consumes the next character in the source and returns it. */
-  private def advance(): Char = {
+  private def advance(): Char =
     val c = source.charAt(current)
     current += 1
     c
-  }
 
-  private def addToken(tokenType: TokenType, literal: LiteralValue = null): Unit = {
+  private def addToken(tokenType: TokenType, literal: LiteralValue = null): Unit =
     val text = source.substring(start, current)
     tokens.append(Token(tokenType, text, literal, line))
-  }
 
   private def tryMatch(expected: Char): Boolean = {
-    if (isAtEnd || source.charAt(current) != expected) {
+    if isAtEnd || source.charAt(current) != expected then
       false
-    } else {
+    else
       current += 1
       true
-    }
   }
 
   private def peek(): Char = if (isAtEnd) 0.toChar else source.charAt(current)
@@ -126,7 +118,7 @@ class Scanner(source: String) {
 
   private def isAlphaNumeric(c: Char) = isAlpha(c) || isDigit(c)
 
-  private def number(): Unit = {
+  private def number(): Unit =
     while isDigit(peek()) do advance()
 
     // Look for a fractional part.
@@ -136,14 +128,12 @@ class Scanner(source: String) {
       while isDigit(peek()) do advance()
 
     addToken(TokenType.NUMBER, source.substring(start, current).toDouble)
-  }
 
-  private def identifier(): Unit = {
+  private def identifier(): Unit =
     while isAlphaNumeric(peek()) do advance()
 
     val text = source.substring(start, current)
     val tokenType = keywords.getOrElse(text, TokenType.IDENTIFIER)
 
     addToken(tokenType)
-  }
-}
+end Scanner

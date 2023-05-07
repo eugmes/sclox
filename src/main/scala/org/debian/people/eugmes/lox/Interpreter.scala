@@ -6,31 +6,31 @@ import java.util
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-class Interpreter {
-  private val globals: Environment = {
+class Interpreter:
+  private val globals: Environment =
     val globals = Environment()
-    globals.define("clock", new LoxCallable {
+    globals.define("clock", new LoxCallable:
       override def arity: Int = 0
 
-      override def call(interpreter: Interpreter, arguments: Seq[LoxValue]): LoxValue = System.currentTimeMillis().toDouble / 1000.0
+      override def call(interpreter: Interpreter, arguments: Seq[LoxValue]): LoxValue =
+        System.currentTimeMillis().toDouble / 1000.0
 
       override def toString: String = "<native fn>"
-    })
+    )
     globals
-  }
+
   private var environment = globals
   // Map of distances to perform variable lookup for different expressions.
   // Identities must be used here because distances may be different for identical expressions.
   private val locals = util.IdentityHashMap[Expr, Integer]()
 
-  def interpret(statements: Seq[Stmt]): Unit = {
+  def interpret(statements: Seq[Stmt]): Unit =
     try
       for statement <- statements do execute(statement)
     catch
       case error: RuntimeError => Lox.runtimeError(error)
-  }
 
-  private def stringify(value: LoxValue): String = {
+  private def stringify(value: LoxValue): String =
     value match
       case null => "nil"
       case d: Double =>
@@ -39,10 +39,9 @@ class Interpreter {
           text = text.substring(0, text.length - 2)
         text
       case _ => value.toString
-  }
 
   @tailrec
-  private def evaluate(expression: Expr): LoxValue = {
+  private def evaluate(expression: Expr): LoxValue =
     expression match
       case Expr.Grouping(expression) => evaluate(expression)
       case Expr.Unary(operator, right) => evaluateUnary(operator, right)
@@ -52,9 +51,8 @@ class Interpreter {
       case Expr.Assign(name, value) => evaluateAssign(name, expression, value)
       case Expr.Logical(left, operator, right) => evaluateLogical(left, operator, right)
       case Expr.Call(callee, paren, arguments) => evaluateCall(callee, paren, arguments)
-  }
 
-  private def execute(stmt: Stmt): Unit = {
+  private def execute(stmt: Stmt): Unit =
     stmt match
       case Stmt.Expression(expression) => evaluate(expression)
       case Stmt.Print(expression) =>
@@ -68,40 +66,34 @@ class Interpreter {
       case Stmt.While(condition, body) => executeWhile(condition, body)
       case Stmt.Function(name, params, body) => environment.define(name.lexeme, LoxFunction(name, params, body, environment))
       case Stmt.Return(_, value) => executeReturn(value)
-  }
 
-  private def executeReturn(value: Expr): Nothing = {
+  private def executeReturn(value: Expr): Nothing =
     val v = if value == null then null else evaluate(value)
     throw Return(v)
-  }
 
-  private def executeWhile(condition: Expr, body: Stmt): Unit = {
+  private def executeWhile(condition: Expr, body: Stmt): Unit =
     while isTruly(evaluate(condition)) do execute(body)
-  }
 
-  def executeBlock(statements: Seq[Stmt], environment: Environment): Unit = {
+  def executeBlock(statements: Seq[Stmt], environment: Environment): Unit =
     val previous = this.environment
     try
       this.environment = environment
       for statement <- statements do execute(statement)
     finally
       this.environment = previous
-  }
 
-  private def executeIf(condition: Expr, thenBranch: Stmt, elseBranch: Stmt): Unit = {
+  private def executeIf(condition: Expr, thenBranch: Stmt, elseBranch: Stmt): Unit =
     if isTruly(evaluate(condition)) then
       execute(thenBranch)
     else if elseBranch != null then
       execute(elseBranch)
-  }
 
-  private def checkNumberOperand(token: Token, right: LoxValue): Double = {
+  private def checkNumberOperand(token: Token, right: LoxValue): Double =
     right match
       case d: Double => d
       case _ => throw RuntimeError(token, "Right operand must be a number.")
-  }
 
-  private def checkNumberOperands(token: Token, left: LoxValue, right: LoxValue): (Double, Double) = {
+  private def checkNumberOperands(token: Token, left: LoxValue, right: LoxValue): (Double, Double) =
     val leftValue = left match
       case d: Double => d
       case _ => throw RuntimeError(token, "Left operand must be a number.")
@@ -109,9 +101,8 @@ class Interpreter {
       case d: Double => d
       case _ => throw RuntimeError(token, "Right operand must be a number.")
     (leftValue, rightValue)
-  }
 
-  private def evaluateCall(callee: Expr, paren: Token, arguments: Seq[Expr]): LoxValue = {
+  private def evaluateCall(callee: Expr, paren: Token, arguments: Seq[Expr]): LoxValue =
     evaluate(callee) match
       case function: LoxCallable =>
         val evalArgs = arguments.map(evaluate)
@@ -119,25 +110,22 @@ class Interpreter {
           throw RuntimeError(paren, s"Expected ${function.arity} arguments but got ${evalArgs.length}.")
         function.call(this, evalArgs)
       case _ => throw RuntimeError(paren, "Can only call functions and classes.")
-  }
 
-  private def evaluateAssign(name: Token, expr: Expr, value: Expr): LoxValue = {
+  private def evaluateAssign(name: Token, expr: Expr, value: Expr): LoxValue =
     val evaluated = evaluate(value)
     val distance = locals.get(expr)
     if distance == null then globals.assign(name, evaluated) else environment.assignAt(distance, name, evaluated)
     evaluated
-  }
 
-  private def evaluateUnary(token: Token, right: Expr): LoxValue = {
+  private def evaluateUnary(token: Token, right: Expr): LoxValue =
     val rightValue = evaluate(right)
 
     token.tokenType match
       case TokenType.MINUS => checkNumberOperand(token, rightValue)
       case TokenType.BANG => !isTruly(rightValue)
       case _ => assert(false)
-  }
 
-  private def evaluateBinary(left: Expr, token: Token, right: Expr): LoxValue = {
+  private def evaluateBinary(left: Expr, token: Token, right: Expr): LoxValue =
     val leftValue = evaluate(left)
     val rightValue = evaluate(right)
 
@@ -171,9 +159,8 @@ class Interpreter {
         val (l, r) = checkNumberOperands(token, leftValue, rightValue)
         l * r
       case _ => assert(false)
-  }
 
-  private def evaluateLogical(left: Expr, operator: Token, right: Expr): LoxValue = {
+  private def evaluateLogical(left: Expr, operator: Token, right: Expr): LoxValue =
     val l = evaluate(left)
 
     if operator.tokenType == TokenType.OR then
@@ -181,28 +168,25 @@ class Interpreter {
     else
       assert(operator.tokenType == TokenType.AND)
       if !isTruly(l) then l else evaluate(right)
-  }
 
-  private def isTruly(value: LoxValue): Boolean = {
+  private def isTruly(value: LoxValue): Boolean =
     value match
       case null => false
       case b: Boolean => b
       case _ => true
-  }
 
-  private def isEqual(left: LoxValue, right: LoxValue): Boolean = {
+  private def isEqual(left: LoxValue, right: LoxValue): Boolean =
     if left == null && right == null then
       true
     else if left == null then
       false
     else
       left == right
-  }
 
   def resolve(expr: Expr, depth: Int): Unit = locals.put(expr, depth)
 
-  private def lookupVariable(name: Token, expr: Expr): LoxValue = {
+  private def lookupVariable(name: Token, expr: Expr): LoxValue =
     val distance = locals.get(expr)
     if distance == null then globals.get(name) else environment.getAt(distance, name.lexeme).get
-  }
-}
+
+end Interpreter

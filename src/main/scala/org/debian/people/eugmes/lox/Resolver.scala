@@ -3,11 +3,12 @@ package org.debian.people.eugmes.lox
 import scala.collection.mutable
 import scala.util.control.NonLocalReturns.{returning, throwReturn}
 
-class Resolver(interpreter: Interpreter) {
+class Resolver(interpreter: Interpreter):
   private val scopes = mutable.Stack[mutable.Map[String, Boolean]]()
 
   private enum FunctionType:
     case NONE, FUNCTION
+  end FunctionType
 
   private var currentFunction = FunctionType.NONE
 
@@ -18,7 +19,7 @@ class Resolver(interpreter: Interpreter) {
   def resolve(statements: Seq[Stmt]): Unit =
     for statement <- statements do resolve(statement)
 
-  private def resolve(statement: Stmt): Unit = {
+  private def resolve(statement: Stmt): Unit =
     statement match
       case Stmt.Expression(expression) => resolve(expression)
       case Stmt.Print(expression) => resolve(expression)
@@ -45,9 +46,8 @@ class Resolver(interpreter: Interpreter) {
         if currentFunction == FunctionType.NONE then
           Lox.error(keyword, "Can't return from top-level code.")
         if value != null then resolve(value)
-  }
 
-  private def resolve(expression: Expr): Unit = {
+  private def resolve(expression: Expr): Unit =
     expression match
       case Expr.Binary(left, _, right) =>
         resolve(left)
@@ -68,7 +68,6 @@ class Resolver(interpreter: Interpreter) {
       case Expr.Call(callee, _, arguments) =>
         resolve(callee)
         for argument <- arguments do resolve(argument)
-  }
 
   private def resolveLocal(expression: Expr, name: Token): Unit = returning {
     for i <- scopes.indices do
@@ -77,7 +76,7 @@ class Resolver(interpreter: Interpreter) {
         throwReturn(())
   }
 
-  private def resolveFunction(params: Seq[Token], body: Seq[Stmt], functionType: FunctionType): Unit = {
+  private def resolveFunction(params: Seq[Token], body: Seq[Stmt], functionType: FunctionType): Unit =
     val enclosingFunction = currentFunction
     currentFunction = functionType
 
@@ -90,18 +89,15 @@ class Resolver(interpreter: Interpreter) {
     endScope()
 
     currentFunction = enclosingFunction
-  }
 
-  private def declare(name: Token): Unit = {
+  private def declare(name: Token): Unit =
     if scopes.nonEmpty then
       val scope = scopes.top
       if scope.contains(name.lexeme) then
         Lox.error(name, "Already a variable with this name in this scope.")
       scope.put(name.lexeme, false)
-  }
 
-  private def define(name: Token): Unit = {
+  private def define(name: Token): Unit =
     if scopes.nonEmpty then
       scopes.top.put(name.lexeme, true)
-  }
-}
+end Resolver
