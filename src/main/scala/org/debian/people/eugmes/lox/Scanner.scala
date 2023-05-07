@@ -4,6 +4,25 @@ import scala.collection.immutable.HashMap
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonLocalReturns.{returning, throwReturn}
 
+private val keywords: HashMap[String, TokenType] = HashMap(
+  "and" -> TokenType.AND,
+  "class" -> TokenType.CLASS,
+  "else" -> TokenType.ELSE,
+  "false" -> TokenType.FALSE,
+  "for" -> TokenType.FOR,
+  "fun" -> TokenType.FUN,
+  "if" -> TokenType.IF,
+  "nil" -> TokenType.NIL,
+  "or" -> TokenType.OR,
+  "print" -> TokenType.PRINT,
+  "return" -> TokenType.RETURN,
+  "super" -> TokenType.SUPER,
+  "this" -> TokenType.THIS,
+  "true" -> TokenType.TRUE,
+  "var" -> TokenType.VAR,
+  "while" -> TokenType.WHILE,
+)
+
 class Scanner(source: String) {
   private val tokens: ArrayBuffer[Token] = ArrayBuffer()
   private var start = 0
@@ -123,29 +142,8 @@ class Scanner(source: String) {
     while isAlphaNumeric(peek()) do advance()
 
     val text = source.substring(start, current)
-    val tokenType = Scanner.keywords.getOrElse(text, TokenType.IDENTIFIER)
+    val tokenType = keywords.getOrElse(text, TokenType.IDENTIFIER)
 
     addToken(tokenType)
   }
-}
-
-private object Scanner {
-  private val keywords: HashMap[String, TokenType] = HashMap(
-    "and" -> TokenType.AND,
-    "class" -> TokenType.CLASS,
-    "else" -> TokenType.ELSE,
-    "false" -> TokenType.FALSE,
-    "for" -> TokenType.FOR,
-    "fun" -> TokenType.FUN,
-    "if" -> TokenType.IF,
-    "nil" -> TokenType.NIL,
-    "or" -> TokenType.OR,
-    "print" -> TokenType.PRINT,
-    "return" -> TokenType.RETURN,
-    "super" -> TokenType.SUPER,
-    "this" -> TokenType.THIS,
-    "true" -> TokenType.TRUE,
-    "var" -> TokenType.VAR,
-    "while" -> TokenType.WHILE,
-  )
 }
