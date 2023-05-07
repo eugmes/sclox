@@ -1,6 +1,6 @@
 package org.debian.people.eugmes.lox
 
-class LoxFunction(name: Token, params: Seq[Token], body: Seq[Stmt], closure: Environment) extends LoxCallable:
+final class LoxFunction(name: Token, params: Seq[Token], body: Seq[Stmt], closure: Environment) extends LoxCallable:
   override def arity: Int = params.length
 
   override def call(interpreter: Interpreter, arguments: Seq[LoxValue]): LoxValue =

@@ -23,7 +23,7 @@ private val keywords: HashMap[String, TokenType] = HashMap(
   "while" -> TokenType.WHILE,
 )
 
-class Scanner(source: String):
+final class Scanner(source: String):
   private val tokens: ArrayBuffer[Token] = ArrayBuffer()
   private var start = 0
   private var current = 0

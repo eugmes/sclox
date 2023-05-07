@@ -3,7 +3,7 @@ package org.debian.people.eugmes.lox
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonLocalReturns.{returning, throwReturn}
 
-class Parser(tokens: Seq[Token]):
+final class Parser(tokens: Seq[Token]):
   private var current = 0
 
   private class ParseError extends RuntimeException

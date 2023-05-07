@@ -5,7 +5,7 @@ import scala.collection.mutable
 
 type LoxValue = LiteralValue | LoxCallable
 
-class Environment(private val enclosing: Environment = null):
+final class Environment(private val enclosing: Environment = null):
   private val values: mutable.HashMap[String, LoxValue] = mutable.HashMap()
 
   def define(name: String, value: LoxValue): Unit = values.put(name, value)
@@ -16,6 +16,7 @@ class Environment(private val enclosing: Environment = null):
       then enclosing.get(name)
       else throw RuntimeError(name, s"Undefined variable '${name.lexeme}'."))
 
+  @tailrec
   def assign(name: Token, value: LoxValue): Unit =
     if values.contains(name.lexeme) then
       values.put(name.lexeme, value)

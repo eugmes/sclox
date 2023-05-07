@@ -3,7 +3,7 @@ package org.debian.people.eugmes.lox
 import scala.collection.mutable
 import scala.util.control.NonLocalReturns.{returning, throwReturn}
 
-class Resolver(interpreter: Interpreter):
+final class Resolver(interpreter: Interpreter):
   private val scopes = mutable.Stack[mutable.Map[String, Boolean]]()
 
   private enum FunctionType:

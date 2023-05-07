@@ -6,7 +6,7 @@ import java.util
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-class Interpreter:
+final class Interpreter:
   private val globals: Environment =
     val globals = Environment()
     globals.define("clock", new LoxCallable:
