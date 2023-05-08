@@ -1,7 +1,5 @@
 package org.debian.people.eugmes.lox
 
-import sun.jvm.hotspot.runtime.VM
-
 import java.util
 import scala.annotation.tailrec
 import scala.collection.mutable
