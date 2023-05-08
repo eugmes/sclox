@@ -111,13 +111,9 @@ final class Interpreter:
       case _ => throw RuntimeError(token, "Right operand must be a number.")
 
   private def checkNumberOperands(token: Token, left: LoxValue, right: LoxValue): (Double, Double) =
-    val leftValue = left match
-      case d: Double => d
-      case _ => throw RuntimeError(token, "Left operand must be a number.")
-    val rightValue = right match
-      case d: Double => d
-      case _ => throw RuntimeError(token, "Right operand must be a number.")
-    (leftValue, rightValue)
+    (left, right) match
+      case (l: Double, r: Double) => (l, r)
+      case _ => throw RuntimeError(token, "Both operands must be numbers.")
 
   private def evaluateSet(obj: Expr, name: Token, value: Expr): LoxValue =
     val objValue = evaluate(obj)
