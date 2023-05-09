@@ -1,4 +1,4 @@
-package org.debian.people.eugmes.lox
+package org.debian.people.eugen.lox
 
 enum Expr:
   case Binary(left: Expr, operator: Token, right: Expr)

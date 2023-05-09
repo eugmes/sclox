@@ -1,4 +1,4 @@
-package org.debian.people.eugmes.lox
+package org.debian.people.eugen.lox
 
 import java.util
 import scala.annotation.tailrec

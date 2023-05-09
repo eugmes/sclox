@@ -1,4 +1,4 @@
-package org.debian.people.eugmes.lox
+package org.debian.people.eugen.lox
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks.{break, breakable}
