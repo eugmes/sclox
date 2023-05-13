@@ -7,7 +7,7 @@ import scala.util.control.NonLocalReturns.{returning, throwReturn}
 final class Parser(tokens: Seq[Token]):
   private var current = 0
 
-  private class ParseError extends RuntimeException
+  private final class ParseError extends RuntimeException
 
   private def isAtEnd = tokens(current).tokenType == TokenType.EOF
 
@@ -151,6 +151,11 @@ final class Parser(tokens: Seq[Token]):
     else if matchToken(TokenType.TRUE) then Expr.Literal(true)
     else if matchToken(TokenType.NIL) then Expr.Literal(null)
     else if matchToken(TokenType.NUMBER, TokenType.STRING) then Expr.Literal(previous().literal)
+    else if matchToken(TokenType.SUPER) then
+      val keyword = previous()
+      consume(TokenType.DOT, "Expect '.' after 'super'.")
+      val method = consume(TokenType.IDENTIFIER, "Expect superclass method name.")
+      Expr.Super(keyword, method)
     else if matchToken(TokenType.THIS) then Expr.This(previous())
     else if matchToken(TokenType.IDENTIFIER) then Expr.Variable(previous())
     else if matchToken(TokenType.LEFT_PAREN) then
@@ -184,12 +189,18 @@ final class Parser(tokens: Seq[Token]):
     val name = consume(TokenType.IDENTIFIER, "Expect class name.")
     consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
 
+    val superclass: Option[Expr.Variable] = if matchToken(TokenType.LESS) then
+      consume(TokenType.IDENTIFIER, "Expect superclass name.")
+      Some(Expr.Variable(previous()))
+    else
+      None
+
     val methods = ArrayBuffer[Stmt.Function]()
     while !check(TokenType.RIGHT_BRACE) && !isAtEnd do
       methods.append(function("method"))
 
     consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
-    Stmt.Class(name, methods.toSeq)
+    Stmt.Class(name, superclass, methods.toSeq)
 
   private def function(kind: String): Stmt.Function =
     val name = consume(TokenType.IDENTIFIER, s"Expect $kind name.")

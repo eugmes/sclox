@@ -11,7 +11,7 @@ final class Resolver(interpreter: Interpreter):
   end FunctionType
 
   private enum ClassType:
-    case NONE, CLASS
+    case NONE, CLASS, SUBCLASS
   end ClassType
 
   private var currentFunction = FunctionType.NONE
@@ -43,7 +43,7 @@ final class Resolver(interpreter: Interpreter):
       case Stmt.While(condition, body) =>
         resolve(condition)
         resolve(body)
-      case Stmt.Function(name, params, body) =>
+      case Stmt.Function(name, _, _) =>
         declare(name)
         define(name)
         resolveFunction(statement.asInstanceOf[Stmt.Function], FunctionType.FUNCTION)
@@ -54,11 +54,20 @@ final class Resolver(interpreter: Interpreter):
           if currentFunction == FunctionType.INITIALIZER then
             Lox.error(keyword, "Can't return a value from initializer.")
           resolve(value)
-      case Stmt.Class(name, methods) =>
+      case Stmt.Class(name, superclass, methods) =>
         val enclosingClass = currentClass
         currentClass = ClassType.CLASS
         declare(name)
         define(name)
+
+        superclass.foreach(superclass =>
+          if name.lexeme == superclass.name.lexeme then
+            Lox.error(superclass.name, "A class cannot inherit from itself.")
+          currentClass = ClassType.SUBCLASS
+          resolve(superclass)
+          beginScope()
+          scopes.top.put("super", true)
+        )
 
         beginScope()
         scopes.top.put("this", true)
@@ -68,6 +77,9 @@ final class Resolver(interpreter: Interpreter):
           resolveFunction(method, declaration)
 
         endScope()
+
+        superclass.foreach(_ => endScope())
+
         currentClass = enclosingClass
 
   private def resolve(expression: Expr): Unit =
@@ -101,6 +113,12 @@ final class Resolver(interpreter: Interpreter):
           Lox.error(keyword, "Can't use 'this' outside of a class.")
         else
           resolveLocal(expression, keyword)
+      case Expr.Super(keyword, _) =>
+        if currentClass == ClassType.NONE then
+          Lox.error(keyword, "Can't use 'super' outside of a class.")
+        else if currentClass != ClassType.SUBCLASS then
+          Lox.error(keyword, "Can't use 'super' in a class with no superclass.")
+        resolveLocal(expression, keyword)
 
   private def resolveLocal(expression: Expr, name: Token): Unit = returning {
     for i <- scopes.indices do

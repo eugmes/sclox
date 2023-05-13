@@ -1,6 +1,6 @@
 package org.debian.people.eugen.lox
 
-final class LoxClass(val name: String, methods: Map[String, LoxFunction]) extends LoxCallable:
+final class LoxClass(val name: String, superclass: Option[LoxClass], methods: Map[String, LoxFunction]) extends LoxCallable:
   override def call(interpreter: Interpreter, arguments: Seq[LoxValue]): LoxValue =
     val instance = LoxInstance(this)
     findMethod("init").map(initializer => initializer.bind(instance).call(interpreter, arguments))
@@ -13,6 +13,7 @@ final class LoxClass(val name: String, methods: Map[String, LoxFunction]) extend
 
   override def toString: String = name
 
-  def findMethod(name: String): Option[LoxFunction] = methods.get(name)
+  def findMethod(name: String): Option[LoxFunction] =
+    methods.get(name).orElse(superclass.flatMap(_.findMethod(name)))
 
 end LoxClass

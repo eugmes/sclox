@@ -12,4 +12,5 @@ enum Expr:
   case Get(obj: Expr, name: Token)
   case Set(obj: Expr, name: Token, value: Expr)
   case This(keyword: Token)
+  case Super(keyword: Token, method: Token)
 end Expr

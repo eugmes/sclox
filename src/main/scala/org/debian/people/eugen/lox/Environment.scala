@@ -5,7 +5,7 @@ import scala.collection.mutable
 
 type LoxValue = LiteralValue | LoxCallable | LoxInstance
 
-final class Environment(private val enclosing: Environment = null):
+final class Environment(val enclosing: Environment = null):
   private val values: mutable.HashMap[String, LoxValue] = mutable.HashMap()
 
   def define(name: String, value: LoxValue): Unit = values.put(name, value)

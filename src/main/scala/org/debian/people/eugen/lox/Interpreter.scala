@@ -52,6 +52,14 @@ final class Interpreter:
       case Expr.Get(obj, name) => evaluateGet(obj, name)
       case Expr.Set(obj, name, value) => evaluateSet(obj, name, value)
       case Expr.This(keyword) => lookupVariable(keyword, expression)
+      case Expr.Super(_, methodName) =>
+        val distance = locals.get(expression)
+        val superclass = environment.getAt(distance, "super").asInstanceOf[LoxClass]
+        val instance = environment.getAt(distance - 1, "this").asInstanceOf[LoxInstance]
+        val method = superclass.findMethod(methodName.lexeme)
+        method match
+          case Some(method) => method.bind(instance)
+          case None => throw RuntimeError(methodName, s"Undefined property '${methodName.lexeme}'.")
 
   private def execute(stmt: Stmt): Unit =
     stmt match
@@ -68,10 +76,22 @@ final class Interpreter:
       case Stmt.Function(name, _, _) =>
         environment.define(name.lexeme, LoxFunction(stmt.asInstanceOf[Stmt.Function], environment, false))
       case Stmt.Return(_, value) => executeReturn(value)
-      case Stmt.Class(name, methods) => executeClass(name, methods)
+      case Stmt.Class(name, superclass, methods) => executeClass(name, superclass, methods)
 
-  private def executeClass(name: Token, methods: Seq[Stmt.Function]): Unit =
+  private def executeClass(name: Token, superclass: Option[Expr.Variable], methods: Seq[Stmt.Function]): Unit =
+    val sc = superclass.map(superclass =>
+      evaluate(superclass) match
+        case klass: LoxClass => klass
+        case _ => throw RuntimeError(superclass.name, "Superclass must be a class.")
+    )
+
     environment.define(name.lexeme, null)
+
+    sc match
+      case Some(superclass) =>
+        environment = Environment(environment)
+        environment.define("super", superclass)
+      case None =>
 
     val methodFunctions = mutable.HashMap[String, LoxFunction]()
     for method <- methods do
@@ -80,7 +100,10 @@ final class Interpreter:
       val function = LoxFunction(method, environment, isInitializer)
       methodFunctions.put(methodName, function)
 
-    val klass = LoxClass(name.lexeme, methodFunctions.toMap)
+    val klass = LoxClass(name.lexeme, sc, methodFunctions.toMap)
+
+    if sc.isDefined then
+      environment = environment.enclosing
 
     environment.assign(name, klass)
 
