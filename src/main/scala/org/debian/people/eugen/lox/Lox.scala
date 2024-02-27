@@ -2,7 +2,8 @@ package org.debian.people.eugen.lox
 
 import scala.io.Source
 import scala.io.StdIn.readLine
-import scala.util.control.NonLocalReturns.{returning, throwReturn}
+import scala.util.boundary
+import scala.util.boundary.break
 
 object Lox:
   private var hadError = false
@@ -19,31 +20,29 @@ object Lox:
     if hadRuntimeError then
       System.exit(70)
 
-  private def runPrompt(): Unit = returning {
+  private def runPrompt(): Unit = boundary:
     while true do
       print("> ")
       val line = readLine()
-      if line == null then throwReturn(())
+      if line == null then break(())
 
       run(line)
       hadError = false
-  }
 
-  private def run(source: String): Unit = returning {
+  private def run(source: String): Unit = boundary:
     val scanner = Scanner(source)
     val tokens = scanner.scanTokens()
     val parser = Parser(tokens)
     val statements = parser.parse()
 
-    if hadError then throwReturn(())
+    if hadError then break(())
 
     val resolver = Resolver(interpreter)
     resolver.resolve(statements)
 
-    if hadError then throwReturn(())
+    if hadError then break(())
 
     interpreter.interpret(statements)
-  }
 
   def error(line: Int, message: String): Unit = report(line, "", message)
 

@@ -2,7 +2,7 @@ package org.debian.people.eugen.lox
 
 import scala.collection.immutable.HashMap
 import scala.collection.mutable.ArrayBuffer
-import scala.util.control.NonLocalReturns.{returning, throwReturn}
+import scala.util.boundary, boundary.break
 
 private val keywords: HashMap[String, TokenType] = HashMap(
   "and" -> TokenType.AND,
@@ -96,21 +96,20 @@ final class Scanner(source: String):
 
   private def peekNext(): Char = if (current + 1 > source.length) 0.toChar else source.charAt(current + 1)
 
-  private def string(): Unit = returning {
+  private def string(): Unit = boundary:
     while peek() != '"' && !isAtEnd do
       if peek() == '\n' then line += 1
       advance()
 
     if isAtEnd then
       Lox.error(line, "Unterminated string.")
-      throwReturn(())
+      break(())
 
     advance() // The closing ".
 
     // Trim the surrounding quotes.
     val value = source.substring(start + 1, current - 1)
     addToken(TokenType.STRING, value)
-  }
 
   private def isDigit(c: Char) = c >= '0' && c <= '9'
 

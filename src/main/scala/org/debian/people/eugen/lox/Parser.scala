@@ -1,8 +1,7 @@
 package org.debian.people.eugen.lox
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.control.Breaks.{break, breakable}
-import scala.util.control.NonLocalReturns.{returning, throwReturn}
+import scala.util.boundary, boundary.break
 
 final class Parser(tokens: Seq[Token]):
   private var current = 0
@@ -21,13 +20,12 @@ final class Parser(tokens: Seq[Token]):
     if !isAtEnd then current += 1
     previous()
 
-  private def matchToken(tokenTypes: TokenType*): Boolean = returning {
+  private def matchToken(tokenTypes: TokenType*): Boolean = boundary:
     for tokenType <- tokenTypes do
       if check(tokenType) then
         advance()
-        throwReturn(true)
+        break(true)
     false
-  }
 
   private def consume(tokenType: TokenType, message: String): Token =
     if check(tokenType) then advance() else throw error(peek(), message)
@@ -120,7 +118,7 @@ final class Parser(tokens: Seq[Token]):
   private def call(): Expr =
     var expr = primary()
 
-    breakable {
+    boundary:
       while true do
         if matchToken(TokenType.LEFT_PAREN) then
           expr = finishCall(expr)
@@ -128,8 +126,7 @@ final class Parser(tokens: Seq[Token]):
           val name = consume(TokenType.IDENTIFIER, "Expect property name after '.'.")
           expr = Expr.Get(expr, name)
         else
-          break
-    }
+          break(())
 
     expr
 
@@ -164,15 +161,14 @@ final class Parser(tokens: Seq[Token]):
       Expr.Grouping(expr)
     else throw error(peek(), "Expect expression.")
 
-  private def synchronize(): Unit = returning {
+  private def synchronize(): Unit = boundary:
     advance()
     while !isAtEnd do
-      if previous().tokenType == TokenType.SEMICOLON then throwReturn(())
+      if previous().tokenType == TokenType.SEMICOLON then break(())
       peek().tokenType match
         case TokenType.CLASS | TokenType.FOR | TokenType.FUN | TokenType.IF | TokenType.PRINT | TokenType.RETURN
-             | TokenType.VAR | TokenType.VAR => throwReturn(())
+             | TokenType.VAR | TokenType.VAR => break(())
         case _ => advance()
-  }
 
   private def declaration(): Stmt =
     try

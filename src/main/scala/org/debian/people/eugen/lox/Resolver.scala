@@ -1,7 +1,7 @@
 package org.debian.people.eugen.lox
 
 import scala.collection.mutable
-import scala.util.control.NonLocalReturns.{returning, throwReturn}
+import scala.util.boundary, boundary.break
 
 final class Resolver(interpreter: Interpreter):
   private val scopes = mutable.Stack[mutable.Map[String, Boolean]]()
@@ -120,12 +120,11 @@ final class Resolver(interpreter: Interpreter):
           Lox.error(keyword, "Can't use 'super' in a class with no superclass.")
         resolveLocal(expression, keyword)
 
-  private def resolveLocal(expression: Expr, name: Token): Unit = returning {
+  private def resolveLocal(expression: Expr, name: Token): Unit = boundary:
     for i <- scopes.indices do
       if scopes(i).contains(name.lexeme) then
         interpreter.resolve(expression, i)
-        throwReturn(())
-  }
+        break(())
 
   private def resolveFunction(function: Stmt.Function, functionType: FunctionType): Unit =
     val enclosingFunction = currentFunction
