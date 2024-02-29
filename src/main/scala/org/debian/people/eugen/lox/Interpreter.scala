@@ -151,7 +151,7 @@ final class Interpreter extends Stmt.Visitor[Unit] with Expr.Visitor[LoxValue]:
     val rightValue = node.right.visit(this)
 
     node.operator.tokenType match
-      case TokenType.MINUS => checkNumberOperand(node.operator, rightValue)
+      case TokenType.MINUS => -checkNumberOperand(node.operator, rightValue)
       case TokenType.BANG => !isTruly(rightValue)
       case _ => assert(false)
 
@@ -174,8 +174,8 @@ final class Interpreter extends Stmt.Visitor[Unit] with Expr.Visitor[LoxValue]:
       case TokenType.LESS_EQUAL =>
         val (l, r) = checkNumberOperands(token, leftValue, rightValue)
         l <= r
-      case TokenType.BANG_EQUAL => !isEqual(leftValue, rightValue)
-      case TokenType.EQUAL_EQUAL => isEqual(leftValue, rightValue)
+      case TokenType.BANG_EQUAL => leftValue != rightValue
+      case TokenType.EQUAL_EQUAL => leftValue == rightValue
       case TokenType.PLUS =>
         (leftValue, rightValue) match
           case (l: Double, r: Double) => l + r
@@ -206,14 +206,6 @@ final class Interpreter extends Stmt.Visitor[Unit] with Expr.Visitor[LoxValue]:
       case null => false
       case b: Boolean => b
       case _ => true
-
-  private def isEqual(left: LoxValue, right: LoxValue): Boolean =
-    if left == null && right == null then
-      true
-    else if left == null then
-      false
-    else
-      left == right
 
   def resolve(expr: Expr, depth: Int): Unit = locals.put(expr, depth)
 
