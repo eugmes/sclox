@@ -10,7 +10,8 @@ final class LoxFunction(declaration: Stmt.Function, closure: Environment, isInit
       environment.define(param.lexeme, arg)
 
     try
-      interpreter.executeBlock(declaration.body, environment)
+      interpreter.withEnvironment(environment):
+        declaration.body.foreach(_.visit(interpreter))
       if isInitializer then closure.getAt(0, "this").get else null
     catch
       case returnValue: Return =>

@@ -1,9 +1,10 @@
 package org.debian.people.eugen.lox
 
 import scala.collection.mutable
-import scala.util.boundary, boundary.break
+import scala.util.boundary
+import boundary.break
 
-final class Resolver(interpreter: Interpreter):
+final class Resolver(interpreter: Interpreter) extends Stmt.Visitor[Unit] with Expr.Visitor[Unit]:
   private val scopes = mutable.Stack[mutable.Map[String, Boolean]]()
 
   private enum FunctionType:
@@ -22,103 +23,117 @@ final class Resolver(interpreter: Interpreter):
   private def endScope(): Unit = scopes.pop()
 
   def resolve(statements: Seq[Stmt]): Unit =
-    for statement <- statements do resolve(statement)
+    statements.foreach(_.visit(this))
 
-  private def resolve(statement: Stmt): Unit =
-    statement match
-      case Stmt.Expression(expression) => resolve(expression)
-      case Stmt.Print(expression) => resolve(expression)
-      case Stmt.Var(name, initializer) =>
-        declare(name)
-        if initializer != null then resolve(initializer)
-        define(name)
-      case Stmt.Block(statements) =>
-        beginScope()
-        resolve(statements)
-        endScope()
-      case Stmt.If(condition, thenBranch, elseBranch) =>
-        resolve(condition)
-        resolve(thenBranch)
-        if elseBranch != null then resolve(elseBranch)
-      case Stmt.While(condition, body) =>
-        resolve(condition)
-        resolve(body)
-      case Stmt.Function(name, _, _) =>
-        declare(name)
-        define(name)
-        resolveFunction(statement.asInstanceOf[Stmt.Function], FunctionType.FUNCTION)
-      case Stmt.Return(keyword, value) =>
-        if currentFunction == FunctionType.NONE then
-          Lox.error(keyword, "Can't return from top-level code.")
-        if value != null then
-          if currentFunction == FunctionType.INITIALIZER then
-            Lox.error(keyword, "Can't return a value from initializer.")
-          resolve(value)
-      case Stmt.Class(name, superclass, methods) =>
-        val enclosingClass = currentClass
-        currentClass = ClassType.CLASS
-        declare(name)
-        define(name)
+  override def visitExpression(node: Stmt.Expression): Unit = node.expression.visit(this)
 
-        superclass.foreach(superclass =>
-          if name.lexeme == superclass.name.lexeme then
-            Lox.error(superclass.name, "A class cannot inherit from itself.")
-          currentClass = ClassType.SUBCLASS
-          resolve(superclass)
-          beginScope()
-          scopes.top.put("super", true)
-        )
+  override def visitPrint(node: Stmt.Print): Unit = node.expression.visit(this)
 
-        beginScope()
-        scopes.top.put("this", true)
+  override def visitVar(node: Stmt.Var): Unit =
+    declare(node.name)
+    if node.initializer != null then node.initializer.visit(this)
+    define(node.name)
 
-        for method <- methods do
-          val declaration = if method.name.lexeme == "init" then FunctionType.INITIALIZER else FunctionType.METHOD
-          resolveFunction(method, declaration)
+  override def visitBlock(node: Stmt.Block): Unit =
+    beginScope()
+    node.statements.foreach(_.visit(this))
+    endScope()
 
-        endScope()
+  override def visitIf(node: Stmt.If): Unit =
+    node.condition.visit(this)
+    node.thenBranch.visit(this)
+    if node.elseBranch != null then node.elseBranch.visit(this)
 
-        superclass.foreach(_ => endScope())
+  override def visitWhile(node: Stmt.While): Unit =
+    node.condition.visit(this)
+    node.body.visit(this)
 
-        currentClass = enclosingClass
+  override def visitFunction(node: Stmt.Function): Unit =
+    declare(node.name)
+    define(node.name)
+    resolveFunction(node, FunctionType.FUNCTION)
 
-  private def resolve(expression: Expr): Unit =
-    expression match
-      case Expr.Binary(left, _, right) =>
-        resolve(left)
-        resolve(right)
-      case Expr.Grouping(expression) => resolve(expression)
-      case Expr.Literal(_) =>
-      case Expr.Unary(_, right) => resolve(right)
-      case Expr.Variable(name) =>
-        if scopes.nonEmpty && scopes.top.get(name.lexeme).contains(false) then
-          Lox.error(name, "Can't read local variable in its own initializer.")
-        resolveLocal(expression, name)
-      case Expr.Assign(name, value) =>
-        resolve(value)
-        resolveLocal(expression, name)
-      case Expr.Logical(left, _, right) =>
-        resolve(left)
-        resolve(right)
-      case Expr.Call(callee, _, arguments) =>
-        resolve(callee)
-        for argument <- arguments do resolve(argument)
-      case Expr.Get(obj, _) =>
-        resolve(obj)
-      case Expr.Set(obj, _, value) =>
-        resolve(value)
-        resolve(obj)
-      case Expr.This(keyword) =>
-        if currentClass == ClassType.NONE then
-          Lox.error(keyword, "Can't use 'this' outside of a class.")
-        else
-          resolveLocal(expression, keyword)
-      case Expr.Super(keyword, _) =>
-        if currentClass == ClassType.NONE then
-          Lox.error(keyword, "Can't use 'super' outside of a class.")
-        else if currentClass != ClassType.SUBCLASS then
-          Lox.error(keyword, "Can't use 'super' in a class with no superclass.")
-        resolveLocal(expression, keyword)
+  override def visitReturn(node: Stmt.Return): Unit =
+    if currentFunction == FunctionType.NONE then
+      Lox.error(node.keyword, "Can't return from top-level code.")
+    if node.value != null then
+      if currentFunction == FunctionType.INITIALIZER then
+        Lox.error(node.keyword, "Can't return a value from initializer.")
+      node.value.visit(this)
+
+  override def visitClass(node: Stmt.Class): Unit =
+    val enclosingClass = currentClass
+    currentClass = ClassType.CLASS
+    declare(node.name)
+    define(node.name)
+
+    node.superclass.foreach(superclass =>
+      if node.name.lexeme == superclass.name.lexeme then
+        Lox.error(superclass.name, "A class cannot inherit from itself.")
+      currentClass = ClassType.SUBCLASS
+      superclass.visit(this)
+      beginScope()
+      scopes.top.put("super", true)
+    )
+
+    beginScope()
+    scopes.top.put("this", true)
+
+    for method <- node.methods do
+      val declaration = if method.name.lexeme == "init" then FunctionType.INITIALIZER else FunctionType.METHOD
+      resolveFunction(method, declaration)
+
+    endScope()
+
+    node.superclass.foreach(_ => endScope())
+
+    currentClass = enclosingClass
+
+  override def visitBinary(node: Expr.Binary): Unit =
+    node.left.visit(this)
+    node.right.visit(this)
+
+  override def visitGrouping(node: Expr.Grouping): Unit = node.expression.visit(this)
+
+  override def visitLiteral(node: Expr.Literal): Unit = ()
+
+  override def visitUnary(node: Expr.Unary): Unit = node.right.visit(this)
+
+  override def visitVariable(node: Expr.Variable): Unit =
+    if scopes.nonEmpty && scopes.top.get(node.name.lexeme).contains(false) then
+      Lox.error(node.name, "Can't read local variable in its own initializer.")
+    resolveLocal(node, node.name)
+
+  override def visitAssign(node: Expr.Assign): Unit =
+    node.value.visit(this)
+    resolveLocal(node, node.name)
+
+  override def visitLogical(node: Expr.Logical): Unit =
+    node.left.visit(this)
+    node.right.visit(this)
+
+  override def visitCall(node: Expr.Call): Unit =
+    node.callee.visit(this)
+    node.arguments.foreach(_.visit(this))
+
+  override def visitGet(node: Expr.Get): Unit = node.obj.visit(this)
+
+  override def visitSet(node: Expr.Set): Unit =
+    node.value.visit(this)
+    node.obj.visit(this)
+
+  override def visitThis(node: Expr.This): Unit =
+    if currentClass == ClassType.NONE then
+      Lox.error(node.keyword, "Can't use 'this' outside of a class.")
+    else
+      resolveLocal(node, node.keyword)
+
+  override def visitSuper(node: Expr.Super): Unit =
+    if currentClass == ClassType.NONE then
+      Lox.error(node.keyword, "Can't use 'super' outside of a class.")
+    else if currentClass != ClassType.SUBCLASS then
+      Lox.error(node.keyword, "Can't use 'super' in a class with no superclass.")
+    resolveLocal(node, node.keyword)
 
   private def resolveLocal(expression: Expr, name: Token): Unit = boundary:
     for i <- scopes.indices do
@@ -150,4 +165,5 @@ final class Resolver(interpreter: Interpreter):
   private def define(name: Token): Unit =
     if scopes.nonEmpty then
       scopes.top.put(name.lexeme, true)
+
 end Resolver

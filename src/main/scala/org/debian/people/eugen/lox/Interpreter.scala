@@ -1,10 +1,9 @@
 package org.debian.people.eugen.lox
 
 import java.util
-import scala.annotation.tailrec
 import scala.collection.mutable
 
-final class Interpreter:
+final class Interpreter extends Stmt.Visitor[Unit] with Expr.Visitor[LoxValue]:
   private val globals: Environment =
     val globals = Environment()
     globals.define("clock", new LoxCallable:
@@ -22,9 +21,18 @@ final class Interpreter:
   // Identities must be used here because distances may be different for identical expressions.
   private val locals = util.IdentityHashMap[Expr, Integer]()
 
+  def withEnvironment[T](env: Environment)(op: => T): T =
+    val oldEnvironment = environment
+    environment = env
+
+    try
+      op
+    finally
+      environment = oldEnvironment
+
   def interpret(statements: Seq[Stmt]): Unit =
     try
-      for statement <- statements do execute(statement)
+      statements.foreach(_.visit(this))
     catch
       case error: RuntimeError => Lox.runtimeError(error)
 
@@ -38,54 +46,27 @@ final class Interpreter:
         text
       case _ => value.toString
 
-  @tailrec
-  private def evaluate(expression: Expr): LoxValue =
-    expression match
-      case Expr.Grouping(expression) => evaluate(expression)
-      case Expr.Unary(operator, right) => evaluateUnary(operator, right)
-      case Expr.Binary(left, operator, right) => evaluateBinary(left, operator, right)
-      case Expr.Literal(value) => value
-      case Expr.Variable(name) => lookupVariable(name, expression)
-      case Expr.Assign(name, value) => evaluateAssign(name, expression, value)
-      case Expr.Logical(left, operator, right) => evaluateLogical(left, operator, right)
-      case Expr.Call(callee, paren, arguments) => evaluateCall(callee, paren, arguments)
-      case Expr.Get(obj, name) => evaluateGet(obj, name)
-      case Expr.Set(obj, name, value) => evaluateSet(obj, name, value)
-      case Expr.This(keyword) => lookupVariable(keyword, expression)
-      case Expr.Super(_, methodName) =>
-        val distance = locals.get(expression)
-        val superclass = environment.getAt(distance, "super").asInstanceOf[LoxClass]
-        val instance = environment.getAt(distance - 1, "this").asInstanceOf[LoxInstance]
-        val method = superclass.findMethod(methodName.lexeme)
-        method match
-          case Some(method) => method.bind(instance)
-          case None => throw RuntimeError(methodName, s"Undefined property '${methodName.lexeme}'.")
+  override def visitExpression(node: Stmt.Expression): Unit = node.expression.visit(this)
 
-  private def execute(stmt: Stmt): Unit =
-    stmt match
-      case Stmt.Expression(expression) => evaluate(expression)
-      case Stmt.Print(expression) =>
-        val value = evaluate(expression)
-        println(stringify(value))
-      case Stmt.Var(name, initializer) =>
-        val value = if initializer == null then null else evaluate(initializer)
-        environment.define(name.lexeme, value)
-      case Stmt.Block(statements) => executeBlock(statements, Environment(environment))
-      case Stmt.If(condition, thenBranch, elseBranch) => executeIf(condition, thenBranch, elseBranch)
-      case Stmt.While(condition, body) => executeWhile(condition, body)
-      case Stmt.Function(name, _, _) =>
-        environment.define(name.lexeme, LoxFunction(stmt.asInstanceOf[Stmt.Function], environment, false))
-      case Stmt.Return(_, value) => executeReturn(value)
-      case Stmt.Class(name, superclass, methods) => executeClass(name, superclass, methods)
+  override def visitPrint(node: Stmt.Print): Unit =
+    val value = node.expression.visit(this)
+    println(stringify(value))
 
-  private def executeClass(name: Token, superclass: Option[Expr.Variable], methods: Seq[Stmt.Function]): Unit =
-    val sc = superclass.map(superclass =>
-      evaluate(superclass) match
+  override def visitVar(node: Stmt.Var): Unit =
+    val value = if node.initializer == null then null else node.initializer.visit(this)
+    environment.define(node.name.lexeme, value)
+
+  override def visitFunction(node: Stmt.Function): Unit =
+    environment.define(node.name.lexeme, LoxFunction(node, environment, false))
+
+  override def visitClass(node: Stmt.Class): Unit =
+    val sc = node.superclass.map(superclass =>
+      superclass.visit(this) match
         case klass: LoxClass => klass
         case _ => throw RuntimeError(superclass.name, "Superclass must be a class.")
     )
 
-    environment.define(name.lexeme, null)
+    environment.define(node.name.lexeme, null)
 
     sc match
       case Some(superclass) =>
@@ -94,39 +75,39 @@ final class Interpreter:
       case None =>
 
     val methodFunctions = mutable.HashMap[String, LoxFunction]()
-    for method <- methods do
+    for method <- node.methods do
       val methodName = method.name.lexeme
       val isInitializer = methodName == "init"
       val function = LoxFunction(method, environment, isInitializer)
       methodFunctions.put(methodName, function)
 
-    val klass = LoxClass(name.lexeme, sc, methodFunctions.toMap)
+    val klass = LoxClass(node.name.lexeme, sc, methodFunctions.toMap)
 
     if sc.isDefined then
       environment = environment.enclosing
 
-    environment.assign(name, klass)
+    environment.assign(node.name, klass)
 
-  private def executeReturn(value: Expr): Nothing =
-    val v = if value == null then null else evaluate(value)
+  override def visitReturn(node: Stmt.Return): Nothing =
+    val v = if node.value == null then null else node.value.visit(this)
     throw Return(v)
 
-  private def executeWhile(condition: Expr, body: Stmt): Unit =
-    while isTruly(evaluate(condition)) do execute(body)
+  override def visitWhile(node: Stmt.While): Unit =
+    while isTruly(node.condition.visit(this)) do node.body.visit(this)
 
-  def executeBlock(statements: Seq[Stmt], environment: Environment): Unit =
+  override def visitBlock(node: Stmt.Block): Unit =
     val previous = this.environment
     try
       this.environment = environment
-      for statement <- statements do execute(statement)
+      node.statements.foreach(_.visit(this))
     finally
       this.environment = previous
 
-  private def executeIf(condition: Expr, thenBranch: Stmt, elseBranch: Stmt): Unit =
-    if isTruly(evaluate(condition)) then
-      execute(thenBranch)
-    else if elseBranch != null then
-      execute(elseBranch)
+  override def visitIf(node: Stmt.If): Unit =
+    if isTruly(node.condition.visit(this)) then
+      node.thenBranch.visit(this)
+    else if node.elseBranch != null then
+      node.elseBranch.visit(this)
 
   private def checkNumberOperand(token: Token, right: LoxValue): Double =
     right match
@@ -138,47 +119,47 @@ final class Interpreter:
       case (l: Double, r: Double) => (l, r)
       case _ => throw RuntimeError(token, "Both operands must be numbers.")
 
-  private def evaluateSet(obj: Expr, name: Token, value: Expr): LoxValue =
-    val objValue = evaluate(obj)
-    objValue match
+  override def visitSet(node: Expr.Set): LoxValue =
+    node.obj.visit(this) match
       case obj: LoxInstance =>
-        val evaluatedValue = evaluate(value)
-        obj.set(name, evaluatedValue)
+        val evaluatedValue = node.value.visit(this)
+        obj.set(node.name, evaluatedValue)
         evaluatedValue
-      case _ => throw RuntimeError(name, "Only instances have fields.")
+      case _ => throw RuntimeError(node.name, "Only instances have fields.")
 
-  private def evaluateGet(obj: Expr, name: Token): LoxValue =
-    val objValue = evaluate(obj)
-    objValue match
-      case obj: LoxInstance => obj.get(name)
-      case _ => throw RuntimeError(name, "Only instances have properties.")
+  override def visitGet(node: Expr.Get): LoxValue =
+    node.obj.visit(this) match
+      case obj: LoxInstance => obj.get(node.name)
+      case _ => throw RuntimeError(node.name, "Only instances have properties.")
 
-  private def evaluateCall(callee: Expr, paren: Token, arguments: Seq[Expr]): LoxValue =
-    evaluate(callee) match
+  override def visitCall(node: Expr.Call): LoxValue =
+    node.callee.visit(this) match
       case function: LoxCallable =>
-        val evalArgs = arguments.map(evaluate)
+        val evalArgs = node.arguments.map(_.visit(this))
         if evalArgs.length != function.arity then
-          throw RuntimeError(paren, s"Expected ${function.arity} arguments but got ${evalArgs.length}.")
+          throw RuntimeError(node.paren, s"Expected ${function.arity} arguments but got ${evalArgs.length}.")
         function.call(this, evalArgs)
-      case _ => throw RuntimeError(paren, "Can only call functions and classes.")
+      case _ => throw RuntimeError(node.paren, "Can only call functions and classes.")
 
-  private def evaluateAssign(name: Token, expr: Expr, value: Expr): LoxValue =
-    val evaluated = evaluate(value)
-    val distance = locals.get(expr)
-    if distance == null then globals.assign(name, evaluated) else environment.assignAt(distance, name, evaluated)
+  override def visitAssign(node: Expr.Assign): LoxValue =
+    val evaluated = node.value.visit(this)
+    val distance = locals.get(node)
+    if distance == null then globals.assign(node.name, evaluated) else environment.assignAt(distance, node.name, evaluated)
     evaluated
 
-  private def evaluateUnary(token: Token, right: Expr): LoxValue =
-    val rightValue = evaluate(right)
+  override def visitUnary(node: Expr.Unary): LoxValue =
+    val rightValue = node.right.visit(this)
 
-    token.tokenType match
-      case TokenType.MINUS => checkNumberOperand(token, rightValue)
+    node.operator.tokenType match
+      case TokenType.MINUS => checkNumberOperand(node.operator, rightValue)
       case TokenType.BANG => !isTruly(rightValue)
       case _ => assert(false)
 
-  private def evaluateBinary(left: Expr, token: Token, right: Expr): LoxValue =
-    val leftValue = evaluate(left)
-    val rightValue = evaluate(right)
+  override def visitBinary(node: Expr.Binary): LoxValue =
+    val leftValue = node.left.visit(this)
+    val rightValue = node.right.visit(this)
+
+    val token = node.operator
 
     token.tokenType match
       case TokenType.GREATER =>
@@ -211,14 +192,14 @@ final class Interpreter:
         l * r
       case _ => assert(false)
 
-  private def evaluateLogical(left: Expr, operator: Token, right: Expr): LoxValue =
-    val l = evaluate(left)
+  override def visitLogical(node: Expr.Logical): LoxValue =
+    val l = node.left.visit(this)
 
-    if operator.tokenType == TokenType.OR then
-      if isTruly(l) then l else evaluate(right)
+    if node.operator.tokenType == TokenType.OR then
+      if isTruly(l) then l else node.right.visit(this)
     else
-      assert(operator.tokenType == TokenType.AND)
-      if !isTruly(l) then l else evaluate(right)
+      assert(node.operator.tokenType == TokenType.AND)
+      if !isTruly(l) then l else node.right.visit(this)
 
   private def isTruly(value: LoxValue): Boolean =
     value match
@@ -239,5 +220,22 @@ final class Interpreter:
   private def lookupVariable(name: Token, expr: Expr): LoxValue =
     val distance = locals.get(expr)
     if distance == null then globals.get(name) else environment.getAt(distance, name.lexeme).get
+
+  override def visitGrouping(node: Expr.Grouping): LoxValue = node.expression.visit(this)
+
+  override def visitLiteral(node: Expr.Literal): LoxValue = node.value
+
+  override def visitVariable(node: Expr.Variable): LoxValue = lookupVariable(node.name, node)
+
+  override def visitThis(node: Expr.This): LoxValue = lookupVariable(node.keyword, node)
+
+  override def visitSuper(node: Expr.Super): LoxValue =
+    val distance = locals.get(node)
+    val superclass = environment.getAt(distance, "super").asInstanceOf[LoxClass]
+    val instance = environment.getAt(distance - 1, "this").asInstanceOf[LoxInstance]
+    val method = superclass.findMethod(node.method.lexeme)
+    method match
+      case Some(method) => method.bind(instance)
+      case None => throw RuntimeError(node.method, s"Undefined property '${node.method.lexeme}'.")
 
 end Interpreter
