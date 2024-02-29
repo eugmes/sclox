@@ -62,7 +62,7 @@ final class Parser(tokens: Seq[Token]):
   private def and(): Expr =
     var expr = equality()
 
-    while matchToken(TokenType.OR) do
+    while matchToken(TokenType.AND) do
       val operator = previous()
       val right = equality()
       expr = Expr.Logical(expr, operator, right)
