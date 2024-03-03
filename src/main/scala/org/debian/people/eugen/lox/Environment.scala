@@ -30,9 +30,6 @@ final class Environment(val enclosing: Environment = null):
   def assignAt(distance: Int, name: Token, value: LoxValue): Unit = ancestor(distance).values.put(name.lexeme, value)
 
   private def ancestor(distance: Int): Environment =
-    var environment = this
-    for _ <- 1 to distance do
-      environment = environment.enclosing
-    environment
+    (1 to distance).foldLeft(this)((env, _) => env.enclosing)
 
 end Environment
