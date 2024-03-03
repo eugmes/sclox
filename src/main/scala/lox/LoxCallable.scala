@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 trait LoxCallable:
   def call(interpreter: Interpreter, arguments: Seq[LoxValue]): LoxValue

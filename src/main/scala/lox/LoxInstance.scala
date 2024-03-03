@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 import scala.collection.mutable
 import scala.util.boundary, boundary.break

@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 enum TokenType:
     // Single character tokens

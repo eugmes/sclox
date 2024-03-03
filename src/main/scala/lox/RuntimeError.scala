@@ -1,3 +1,3 @@
-package org.debian.people.eugen.lox
+package lox
 
 final class RuntimeError(val token: Token, message: String) extends RuntimeException(message)

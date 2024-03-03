@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 import scala.annotation.tailrec
 import scala.collection.mutable

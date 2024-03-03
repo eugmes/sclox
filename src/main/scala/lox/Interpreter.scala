@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 import java.util
 import scala.collection.mutable

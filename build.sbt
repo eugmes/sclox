@@ -5,7 +5,7 @@ ThisBuild / scalaVersion := "3.3.1"
 lazy val root = (project in file("."))
   .settings(
     name := "lox",
-    assembly / mainClass := Some("org.debian.people.eugen.lox.Lox"),
+    assembly / mainClass := Some("lox.Lox"),
     assembly / assemblyJarName := "sclox.jar",
   )
 

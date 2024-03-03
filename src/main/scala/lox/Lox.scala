@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 import scala.io.Source
 import scala.io.StdIn.readLine

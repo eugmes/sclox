@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 type LiteralValue = Null | String | Double | Boolean
 

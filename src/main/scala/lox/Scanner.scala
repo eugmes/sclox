@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 import scala.collection.immutable.HashMap
 import scala.collection.mutable.ArrayBuffer

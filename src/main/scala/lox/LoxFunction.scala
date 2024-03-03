@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 final class LoxFunction(declaration: Stmt.Function, closure: Environment, isInitializer: Boolean) extends LoxCallable:
   override def arity: Int = declaration.params.length

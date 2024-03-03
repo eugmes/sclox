@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 sealed trait Expr:
   def visit[T](visitor: Expr.Visitor[T]): T

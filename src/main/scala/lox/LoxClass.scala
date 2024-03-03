@@ -1,4 +1,4 @@
-package org.debian.people.eugen.lox
+package lox
 
 final class LoxClass(val name: String, superclass: Option[LoxClass], methods: Map[String, LoxFunction]) extends LoxCallable:
   override def call(interpreter: Interpreter, arguments: Seq[LoxValue]): LoxValue =
