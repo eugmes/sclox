@@ -3,7 +3,7 @@ package org.debian.people.eugen.lox
 import java.util
 import scala.collection.mutable
 
-final class Interpreter extends Stmt.Visitor[Unit] with Expr.Visitor[LoxValue]:
+final class Interpreter extends Resolve, Stmt.Visitor[Unit], Expr.Visitor[LoxValue]:
   private val globals: Environment =
     val globals = Environment()
     globals.define("clock", new LoxCallable:
@@ -68,14 +68,12 @@ final class Interpreter extends Stmt.Visitor[Unit] with Expr.Visitor[LoxValue]:
 
     environment.define(node.name.lexeme, null)
 
-    sc match
-      case Some(superclass) =>
-        environment = Environment(environment)
-        environment.define("super", superclass)
-      case None =>
+    sc.foreach: superclass =>
+      environment = Environment(environment)
+      environment.define("super", superclass)
 
     val methodFunctions = mutable.HashMap[String, LoxFunction]()
-    for method <- node.methods do
+    node.methods.foreach: method =>
       val methodName = method.name.lexeme
       val isInitializer = methodName == "init"
       val function = LoxFunction(method, environment, isInitializer)
@@ -96,12 +94,8 @@ final class Interpreter extends Stmt.Visitor[Unit] with Expr.Visitor[LoxValue]:
     while isTruly(node.condition.visit(this)) do node.body.visit(this)
 
   override def visitBlock(node: Stmt.Block): Unit =
-    val previous = this.environment
-    try
-      this.environment = environment
+    withEnvironment(Environment()):
       node.statements.foreach(_.visit(this))
-    finally
-      this.environment = previous
 
   override def visitIf(node: Stmt.If): Unit =
     if isTruly(node.condition.visit(this)) then
@@ -207,7 +201,7 @@ final class Interpreter extends Stmt.Visitor[Unit] with Expr.Visitor[LoxValue]:
       case b: Boolean => b
       case _ => true
 
-  def resolve(expr: Expr, depth: Int): Unit = locals.put(expr, depth)
+  override def resolve(expr: Expr, depth: Int): Unit = locals.put(expr, depth)
 
   private def lookupVariable(name: Token, expr: Expr): LoxValue =
     val distance = locals.get(expr)

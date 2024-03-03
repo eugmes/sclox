@@ -4,7 +4,10 @@ import scala.collection.mutable
 import scala.util.boundary
 import boundary.break
 
-final class Resolver(interpreter: Interpreter) extends Stmt.Visitor[Unit] with Expr.Visitor[Unit]:
+trait Resolve:
+  def resolve(expr: Expr, depth: Int): Unit
+
+final class Resolver(interpreter: Resolve) extends Stmt.Visitor[Unit], Expr.Visitor[Unit]:
   private val scopes = mutable.Stack[mutable.Map[String, Boolean]]()
 
   private enum FunctionType:
@@ -67,14 +70,13 @@ final class Resolver(interpreter: Interpreter) extends Stmt.Visitor[Unit] with E
     declare(node.name)
     define(node.name)
 
-    node.superclass.foreach(superclass =>
+    node.superclass.foreach: superclass =>
       if node.name.lexeme == superclass.name.lexeme then
         Lox.error(superclass.name, "A class cannot inherit from itself.")
       currentClass = ClassType.SUBCLASS
       superclass.visit(this)
       beginScope()
       scopes.top.put("super", true)
-    )
 
     beginScope()
     scopes.top.put("this", true)
@@ -146,7 +148,7 @@ final class Resolver(interpreter: Interpreter) extends Stmt.Visitor[Unit] with E
     currentFunction = functionType
 
     beginScope()
-    for param <- function.params do
+    function.params.foreach: param =>
       declare(param)
       define(param)
 
